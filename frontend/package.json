@@ -12,7 +12,6 @@
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.4",
     "chart.js": "^4.5.1",
-    "chartjs-chart-matrix": "^3.0.0",
     "clsx": "^2.1.1",
     "framer-motion": "^12.35.0",
     "lucide-react": "^0.577.0",
