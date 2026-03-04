@@ -1,0 +1,123 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-main: #f5f7ff;
+  --bg-soft: #e7edff;
+  --text-main: #0b1022;
+  --text-muted: #465076;
+  --card-bg: rgba(255, 255, 255, 0.75);
+  --card-border: rgba(108, 124, 255, 0.2);
+  --glow: 124, 58, 237;
+  color-scheme: light;
+}
+
+:root.dark {
+  --bg-main: #060b1b;
+  --bg-soft: #0d1430;
+  --text-main: #e9eeff;
+  --text-muted: #a6b4dc;
+  --card-bg: rgba(15, 22, 51, 0.68);
+  --card-border: rgba(139, 92, 246, 0.22);
+  --glow: 34, 211, 238;
+  color-scheme: dark;
+}
+
+* {
+  @apply border-slate-200 dark:border-slate-800;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  min-height: 100vh;
+  background: var(--bg-main);
+  color: var(--text-main);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Poppins', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.02em;
+}
+
+::selection {
+  background: rgba(var(--glow), 0.25);
+}
+
+@layer components {
+  .glass {
+    @apply border backdrop-blur-2xl shadow-card;
+    background: var(--card-bg);
+    border-color: var(--card-border);
+  }
+
+  .section-wrap {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .interactive-card {
+    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-glow;
+  }
+
+  .gradient-border {
+    position: relative;
+  }
+
+  .gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(120deg, rgba(124, 58, 237, 0.55), rgba(34, 211, 238, 0.55));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+}
+
+@layer utilities {
+  .bg-animated {
+    background: linear-gradient(130deg, #090f25, #111a3b, #2e2d72, #0b2345);
+    background-size: 300% 300%;
+    animation: gradientShift 14s ease infinite;
+  }
+
+  .shadow-soft-glow {
+    box-shadow: 0 0 40px rgba(var(--glow), 0.25);
+  }
+
+  .text-muted {
+    color: var(--text-muted);
+  }
+}
+
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
