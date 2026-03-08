@@ -66,17 +66,13 @@ export async function register(payload: {
   email: string
   username: string
   password: string
-  role?: 'student' | 'teacher' | 'admin'
 }): Promise<AuthResponse> {
-  const { data } = await api.post<AuthResponse>('/auth/register', { ...payload, role: payload.role || 'student' })
+  const { data } = await api.post<AuthResponse>('/auth/register', payload)
   return data
 }
 
-export async function startGoogleAuth(
-  redirect_to: string,
-  role?: 'student' | 'teacher' | 'admin',
-): Promise<AuthResponse | OAuthResponse> {
-  const { data } = await api.post<AuthResponse | OAuthResponse>('/auth/google', { redirect_to, role })
+export async function startGoogleAuth(redirect_to: string): Promise<AuthResponse | OAuthResponse> {
+  const { data } = await api.post<AuthResponse | OAuthResponse>('/auth/google', { redirect_to })
   return data
 }
 
@@ -84,7 +80,6 @@ export async function exchangeGoogleAuth(payload: {
   code?: string
   access_token?: string
   redirect_to: string
-  role?: 'student' | 'teacher' | 'admin'
 }): Promise<AuthResponse> {
   const { data } = await api.post<AuthResponse>('/auth/google/exchange', payload)
   return data

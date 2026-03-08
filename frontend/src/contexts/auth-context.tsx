@@ -12,15 +12,13 @@ type AuthContextValue = {
     name: string
     email: string
     username: string
-      password: string
-      role?: 'student' | 'teacher' | 'admin'
+    password: string
   }) => Promise<void>
-  googleAuth: (role?: 'student' | 'teacher' | 'admin') => Promise<'authenticated' | 'redirected'>
+  googleAuth: () => Promise<'authenticated' | 'redirected'>
   completeGoogleAuth: (payload: {
     code?: string
     access_token?: string
     redirect_to: string
-    role?: 'student' | 'teacher' | 'admin'
   }) => Promise<void>
   updateProfile: (payload: { name?: string; username?: string }) => Promise<void>
   logout: () => void
@@ -76,7 +74,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email: string
       username: string
       password: string
-      role?: 'student' | 'teacher' | 'admin'
     }) => {
       setIsLoading(true)
       try {
@@ -92,16 +89,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [],
   )
 
-  const googleAuth = useCallback(async (role?: 'student' | 'teacher' | 'admin') => {
+  const googleAuth = useCallback(async () => {
     setIsLoading(true)
     try {
       const redirect_to = `${window.location.origin}/auth/callback`
-      if (role) {
-        sessionStorage.setItem('neuroprep_pending_google_role', role)
-      } else {
-        sessionStorage.removeItem('neuroprep_pending_google_role')
-      }
-      const res = await api.startGoogleAuth(redirect_to, role)
+      const res = await api.startGoogleAuth(redirect_to)
       if ('oauth_url' in res) {
         window.location.href = res.oauth_url
         return 'redirected' as const
@@ -110,7 +102,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(USER_KEY, JSON.stringify(res.user))
       setToken(res.token.access_token)
       setUser(res.user)
-      sessionStorage.removeItem('neuroprep_pending_google_role')
       return 'authenticated' as const
     } finally {
       setIsLoading(false)
@@ -122,22 +113,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       code?: string
       access_token?: string
       redirect_to: string
-      role?: 'student' | 'teacher' | 'admin'
     }) => {
       setIsLoading(true)
       try {
-        const storedRole = sessionStorage.getItem('neuroprep_pending_google_role')
-        const role =
-          payload.role ||
-          (storedRole === 'student' || storedRole === 'teacher' || storedRole === 'admin'
-            ? storedRole
-            : undefined)
-        const res = await api.exchangeGoogleAuth({ ...payload, role })
+        const res = await api.exchangeGoogleAuth(payload)
         localStorage.setItem(TOKEN_KEY, res.token.access_token)
         localStorage.setItem(USER_KEY, JSON.stringify(res.user))
         setToken(res.token.access_token)
         setUser(res.user)
-        sessionStorage.removeItem('neuroprep_pending_google_role')
       } finally {
         setIsLoading(false)
       }

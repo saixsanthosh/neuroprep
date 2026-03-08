@@ -114,22 +114,21 @@ class AuthService:
         email: str,
         username: str,
         name: str,
-        role: str = 'student',
         created_at: str | None = None,
     ) -> dict:
         now_iso = utc_now_iso()
         return {
-            'id': str(uuid5(NAMESPACE_URL, f'neuroprep-demo:{email.lower()}:{role}')),
+            'id': str(uuid5(NAMESPACE_URL, f'neuroprep-demo:{email.lower()}')),
             'name': name,
             'email': email.lower(),
             'username': username.lower(),
-            'role': role,
+            'role': 'student',
             'created_at': created_at or now_iso,
             'last_login': now_iso,
             'password_hash': None,
         }
 
-    def _build_google_user_row(self, auth_user: object, role: str = 'student') -> dict:
+    def _build_google_user_row(self, auth_user: object) -> dict:
         email = str(getattr(auth_user, 'email', '')).lower()
         metadata = getattr(auth_user, 'user_metadata', {}) or {}
         return {
@@ -137,13 +136,13 @@ class AuthService:
             'name': metadata.get('full_name') or metadata.get('name') or 'Google User',
             'email': email,
             'username': self._normalize_username(email),
-            'role': role,
+            'role': 'student',
             'created_at': utc_now_iso(),
             'last_login': utc_now_iso(),
             'password_hash': None,
         }
 
-    def _resolve_google_user(self, auth_user: object, role: str = 'student') -> dict:
+    def _resolve_google_user(self, auth_user: object) -> dict:
         email = str(getattr(auth_user, 'email', '')).lower()
         if not email:
             raise HTTPException(
@@ -159,7 +158,7 @@ class AuthService:
             user_row['last_login'] = now_iso
             return user_row
 
-        user_row = self._build_google_user_row(auth_user, role=role)
+        user_row = self._build_google_user_row(auth_user)
         inserted = self.client.table('users').insert(user_row).execute()
         if not inserted.data:
             raise HTTPException(
@@ -173,7 +172,6 @@ class AuthService:
             email=payload.email.lower(),
             username=payload.username.lower(),
             name=payload.name,
-            role=payload.role,
         )
         return self._issue_auth_response(row, 'Registration successful.')
 
@@ -193,17 +191,14 @@ class AuthService:
             email=email,
             username=username,
             name=username.replace('_', ' ').title(),
-            role='student',
         )
         return self._issue_auth_response(row, 'Login successful')
 
-    def _demo_google_auth(self, role: str = 'student') -> AuthResponse:
-        normalized_role = role if role in {'student', 'teacher', 'admin'} else 'student'
+    def _demo_google_auth(self) -> AuthResponse:
         row = self._build_demo_user_row(
-            email=f'google.{normalized_role}@demo.neuroprep.app',
-            username=f'google_{normalized_role}',
-            name=f'Google Demo {normalized_role.title()}',
-            role=normalized_role,
+            email='google.student@demo.neuroprep.app',
+            username='google_student',
+            name='Google Demo Student',
         )
         return self._issue_auth_response(row, 'Google login successful')
 
@@ -241,7 +236,7 @@ class AuthService:
             'name': payload.name,
             'email': email,
             'username': username,
-            'role': payload.role,
+            'role': 'student',
             'created_at': utc_now_iso(),
             'last_login': utc_now_iso(),
             'password_hash': hash_password(payload.password),
@@ -349,7 +344,7 @@ class AuthService:
 
     def google_auth(self, payload: GoogleAuthRequest) -> AuthResponse | OAuthResponse:
         if self.demo_mode:
-            return self._demo_google_auth(payload.role or 'student')
+            return self._demo_google_auth()
 
         if payload.id_token:
             try:
@@ -365,7 +360,7 @@ class AuthService:
                     detail=f'Google auth failed: {exc}',
                 ) from exc
 
-            user_row = self._resolve_google_user(auth_user, role=payload.role or 'student')
+            user_row = self._resolve_google_user(auth_user)
             return self._issue_auth_response(user_row, 'Google login successful')
 
         redirect_to = payload.redirect_to or 'http://127.0.0.1:5173/auth/callback'
@@ -401,7 +396,7 @@ class AuthService:
 
     def google_exchange(self, payload: GoogleExchangeRequest) -> AuthResponse:
         if self.demo_mode:
-            return self._demo_google_auth(payload.role or 'student')
+            return self._demo_google_auth()
 
         access_token = payload.access_token
         if payload.code:
@@ -435,5 +430,5 @@ class AuthService:
                 detail=f'Unable to fetch Google user session: {exc}',
             ) from exc
 
-        user_row = self._resolve_google_user(auth_user, role=payload.role or 'student')
+        user_row = self._resolve_google_user(auth_user)
         return self._issue_auth_response(user_row, 'Google login successful')

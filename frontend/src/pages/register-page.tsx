@@ -25,14 +25,13 @@ import { AnimatedGradientOrb } from '../components/ui/animated-gradient-orb'
 import { FloatingShapes } from '../components/ui/floating-shapes'
 import { ParticlesBackground } from '../components/ui/particles-background'
 import { GlowingCard } from '../components/ui/glowing-card'
-import { AnimatedCounter } from '../components/ui/animated-counter'
 import { GradientText } from '../components/ui/gradient-text'
 import { GoogleMark } from '../components/ui/google-mark'
 
 const onboardingNotes = [
   {
     icon: ShieldCheck,
-    text: 'Student, teacher, and admin-ready account structure',
+    text: 'Student-first account structure with fast onboarding and protected sessions',
     color: 'from-cyan-400 to-blue-500',
   },
   {
@@ -54,7 +53,6 @@ export function RegisterPage() {
   const [email, setEmail] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [role, setRole] = useState<'student' | 'teacher' | 'admin'>('student')
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
 
@@ -78,7 +76,6 @@ export function RegisterPage() {
         email: email.trim(),
         username: username.trim(),
         password,
-        role,
       })
       navigate('/dashboard', { replace: true })
     } catch (err: unknown) {
@@ -96,7 +93,7 @@ export function RegisterPage() {
     setError('')
 
     try {
-      const result = await googleAuth(role)
+      const result = await googleAuth()
       if (result === 'authenticated') {
         navigate('/dashboard', { replace: true })
       }
@@ -188,7 +185,7 @@ export function RegisterPage() {
                 </motion.div>
                 <CardTitle className="text-2xl text-white">Create your account</CardTitle>
                 <CardDescription>
-                  Get into NeuroPrep with email, username, and secure local auth already wired.
+                  Create your student workspace with email, username, and secure sign-in already wired.
                 </CardDescription>
               </CardHeader>
 
@@ -289,26 +286,6 @@ export function RegisterPage() {
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-[var(--text-main)]">Role</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(['student', 'teacher', 'admin'] as const).map((option) => (
-                      <button
-                        key={option}
-                        type="button"
-                        onClick={() => setRole(option)}
-                        className={`rounded-xl border px-3 py-2 text-xs font-medium uppercase tracking-[0.16em] transition ${
-                          role === option
-                            ? 'border-violet-300/40 bg-violet-500/15 text-white'
-                            : 'border-white/10 bg-white/5 text-slate-400 hover:bg-white/10'
-                        }`}
-                      >
-                        {option}
-                      </button>
-                    ))}
                   </div>
                 </div>
 
@@ -424,11 +401,9 @@ export function RegisterPage() {
                 transition={{ delay: 0.5 }}
               >
                 <GlowingCard className="p-4" glowColor="rgba(34, 211, 238, 0.3)">
-                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Roles</p>
-                  <p className="mt-3 text-3xl font-bold text-white">
-                    <AnimatedCounter value={3} />
-                  </p>
-                  <p className="mt-2 text-sm text-slate-400">Student, teacher, admin</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Workspace</p>
+                  <p className="mt-3 text-3xl font-bold text-white">Student</p>
+                  <p className="mt-2 text-sm text-slate-400">Focused on a single learner journey</p>
                 </GlowingCard>
                 <GlowingCard className="p-4" glowColor="rgba(124, 58, 237, 0.3)">
                   <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Security</p>

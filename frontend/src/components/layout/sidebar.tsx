@@ -35,7 +35,6 @@ type SidebarProps = {
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const { user } = useAuth()
-  const roleLabel = user?.role ? user.role[0].toUpperCase() + user.role.slice(1) : 'Guest'
 
   return (
     <motion.aside
@@ -51,7 +50,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           {!collapsed && (
             <div className="min-w-0">
               <p className="truncate font-heading text-lg font-semibold text-white">NeuroPrep</p>
-              <p className="text-xs text-slate-400">{roleLabel} workspace</p>
+              <p className="text-xs text-slate-400">Student workspace</p>
             </div>
           )}
         </div>

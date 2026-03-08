@@ -139,10 +139,8 @@ export function SettingsPage() {
             </div>
             <div className="rounded-[1.6rem] border border-white/10 bg-white/5 p-5">
               <User className="h-5 w-5 text-slate-400" />
-              <p className="mt-3 text-xs uppercase tracking-[0.18em] text-slate-500">Username / Role</p>
-              <p className="mt-2 text-base font-semibold text-white">
-                {user?.username ?? 'unknown'} / {user?.role ?? 'student'}
-              </p>
+              <p className="mt-3 text-xs uppercase tracking-[0.18em] text-slate-500">Username</p>
+              <p className="mt-2 text-base font-semibold text-white">{user?.username ?? 'unknown'}</p>
             </div>
           </div>
 

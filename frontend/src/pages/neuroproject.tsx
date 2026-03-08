@@ -173,7 +173,7 @@ export function NeuroProject() {
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted">
                   <Users className="h-3.5 w-3.5" />
-                  3 roles: Student, Teacher, Admin
+                  Student-only workflow
                 </div>
               </div>
 

@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -9,7 +8,6 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     username: str = Field(min_length=3, max_length=50)
     password: str = Field(min_length=8, max_length=128)
-    role: Literal['student', 'teacher', 'admin'] = 'student'
 
 
 class LoginRequest(BaseModel):
@@ -20,14 +18,12 @@ class LoginRequest(BaseModel):
 class GoogleAuthRequest(BaseModel):
     id_token: str | None = None
     redirect_to: str | None = None
-    role: Literal['student', 'teacher', 'admin'] | None = None
 
 
 class GoogleExchangeRequest(BaseModel):
     code: str | None = None
     access_token: str | None = None
     redirect_to: str | None = None
-    role: Literal['student', 'teacher', 'admin'] | None = None
 
 
 class ProfileUpdateRequest(BaseModel):
