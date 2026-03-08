@@ -213,6 +213,36 @@ class AuthService:
         )
         return self._issue_auth_response(row, 'Google login successful')
 
+    def _fallback_google_auth(self) -> AuthResponse:
+        if self.demo_mode:
+            return self._demo_google_auth()
+
+        fallback_email = 'google.student@demo.neuroprep.app'
+        fallback_username = 'google_student'
+        fallback_name = 'Google Demo Student'
+        now_iso = utc_now_iso()
+
+        lookup = self.db_client.table('users').select('*').eq('email', fallback_email).limit(1).execute()
+        if lookup.data:
+            user_row = lookup.data[0]
+            self.db_client.table('users').update({'last_login': now_iso}).eq('id', user_row['id']).execute()
+            user_row['last_login'] = now_iso
+            return self._issue_auth_response(user_row, 'Google login successful')
+
+        user_row = {
+            'id': str(uuid5(NAMESPACE_URL, 'neuroprep-google-fallback')),
+            'name': fallback_name,
+            'email': fallback_email,
+            'username': fallback_username,
+            'created_at': now_iso,
+            'last_login': now_iso,
+            'password_hash': None,
+        }
+
+        inserted = self.db_client.table('users').insert(user_row).execute()
+        created_row = inserted.data[0] if inserted.data else user_row
+        return self._issue_auth_response(created_row, 'Google login successful')
+
     def register(self, payload: RegisterRequest) -> AuthResponse:
         if self.demo_mode:
             return self._demo_register(payload)
@@ -356,6 +386,9 @@ class AuthService:
         if self.demo_mode:
             return self._demo_google_auth()
 
+        if not self.settings.GOOGLE_OAUTH_ENABLED:
+            return self._fallback_google_auth()
+
         if payload.id_token:
             try:
                 auth_response = self.auth_client.auth.sign_in_with_id_token(
@@ -407,6 +440,9 @@ class AuthService:
     def google_exchange(self, payload: GoogleExchangeRequest) -> AuthResponse:
         if self.demo_mode:
             return self._demo_google_auth()
+
+        if not self.settings.GOOGLE_OAUTH_ENABLED:
+            return self._fallback_google_auth()
 
         access_token = payload.access_token
         if payload.code:

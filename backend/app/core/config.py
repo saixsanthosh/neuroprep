@@ -27,6 +27,7 @@ class Settings(BaseSettings):
 
     GEMINI_API_KEY: str | None = None
     TAVILY_API_KEY: str | None = None
+    GOOGLE_OAUTH_ENABLED: bool = False
     LIBRETRANSLATE_URL: str | None = 'https://libretranslate.de'
     WHISPER_MODEL: str | None = 'base'
     COQUI_TTS_MODEL: str | None = 'tts_models/en/ljspeech/tacotron2-DDC'
