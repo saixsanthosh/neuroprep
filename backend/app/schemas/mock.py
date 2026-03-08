@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 class MockStartRequest(BaseModel):
     exam_type: str = Field(min_length=2, max_length=80)
-    total_questions: int = Field(default=90, ge=10, le=300)
+    total_questions: int = Field(default=90, ge=1, le=300)
     duration_minutes: int = Field(default=180, ge=15, le=360)
 
 
