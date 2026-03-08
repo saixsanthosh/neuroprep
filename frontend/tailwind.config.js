@@ -10,9 +10,9 @@ export default {
       },
       colors: {
         bg: {
-          DEFAULT: '#060b1b',
-          soft: '#0d1430',
-          glass: '#111a3b',
+          DEFAULT: 'var(--bg-main)',
+          soft: 'var(--bg-soft)',
+          glass: 'var(--bg-elevated)',
         },
         primary: {
           400: '#8b5cf6',
@@ -31,6 +31,7 @@ export default {
       boxShadow: {
         glow: '0 20px 60px rgba(88, 70, 255, 0.35)',
         card: '0 20px 45px rgba(5, 9, 28, 0.45)',
+        'card-light': '0 10px 30px rgba(100, 116, 139, 0.15)',
       },
       keyframes: {
         float: {

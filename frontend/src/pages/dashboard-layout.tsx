@@ -20,7 +20,7 @@ export function DashboardLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-hero-gradient text-[var(--text-main)]">
+    <div className="min-h-screen text-[var(--text-main)]" style={{ background: 'var(--bg-main)' }}>
       <div className="section-wrap grid min-h-screen gap-4 py-4 lg:grid-cols-[auto_1fr]">
         <div className="hidden lg:block">
           <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((prev) => !prev)} />

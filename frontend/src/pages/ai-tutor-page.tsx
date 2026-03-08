@@ -295,7 +295,7 @@ export function AITutorPage() {
               </div>
             </div>
 
-            <div ref={feedRef} className="flex-1 space-y-4 overflow-y-auto pr-1">
+            <div ref={feedRef} className="flex-1 space-y-4 overflow-y-auto pr-2 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10">
               <AnimatePresence initial={false}>
                 {messages.map((message, index) => (
                   <motion.div
@@ -320,8 +320,8 @@ export function AITutorPage() {
                           <Bot className="h-4 w-4 text-cyan-300" />
                         )}
                       </div>
-                      <div className="flex-1">
-                        <p className="whitespace-pre-wrap">{message.content}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="whitespace-pre-wrap break-words">{message.content}</p>
                         {message.role === 'assistant' && message.content && (
                           <div className="mt-2 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
                             <button
