@@ -13,7 +13,9 @@ def submit_game_score(
     payload: GameScoreCreate,
     current_user: dict = Depends(get_current_user),
 ) -> GameScoreResponse:
-    return GameScoreResponse(**games_service.submit_score(current_user['id'], payload))
+    return GameScoreResponse(
+        **games_service.submit_score(current_user['id'], current_user['username'], payload)
+    )
 
 
 @router.get('/leaderboard', response_model=list[LeaderboardEntry])

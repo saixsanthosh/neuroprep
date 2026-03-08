@@ -3,7 +3,6 @@ from collections import defaultdict
 from app.core.config import get_settings
 from app.database.supabase_client import get_supabase_admin_client
 from app.schemas.games import GameScoreCreate
-from app.services.auth_service import list_demo_users
 from app.services.demo_store import insert_row, list_rows
 
 
@@ -12,9 +11,10 @@ class GamesService:
         self.demo_mode = get_settings().DEMO_MODE
         self.client = None if self.demo_mode else get_supabase_admin_client()
 
-    def submit_score(self, user_id: str, payload: GameScoreCreate) -> dict:
+    def submit_score(self, user_id: str, username: str, payload: GameScoreCreate) -> dict:
         row = {
             'user_id': user_id,
+            'username': username,
             'game_name': payload.game_name,
             'score': payload.score,
         }
@@ -26,7 +26,11 @@ class GamesService:
     def leaderboard(self, limit: int = 20) -> list[dict]:
         if self.demo_mode:
             scores_rows = list_rows('game_scores', order_by='score', desc=True, limit=200)
-            username_map = {row['id']: row['username'] for row in list_demo_users()}
+            username_map = {
+                row['user_id']: row.get('username', 'Unknown')
+                for row in scores_rows
+                if row.get('username')
+            }
         else:
             scores_response = (
                 self.client.table('game_scores')
