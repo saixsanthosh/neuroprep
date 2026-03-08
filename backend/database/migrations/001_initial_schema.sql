@@ -3,7 +3,6 @@
 
 create extension if not exists "pgcrypto";
 
-create type user_role as enum ('student');
 create type session_kind as enum ('study', 'break');
 create type task_status as enum ('pending', 'completed');
 create type flashcard_difficulty as enum ('easy', 'medium', 'hard');
@@ -13,7 +12,6 @@ create table if not exists users (
   name text not null,
   email text not null unique,
   username text not null unique,
-  role user_role not null default 'student',
   password_hash text,
   created_at timestamptz not null default now(),
   last_login timestamptz

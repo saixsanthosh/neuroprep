@@ -13,7 +13,6 @@ class UserModel(BaseModel):
     name: str
     email: str
     username: str
-    role: str
     created_at: datetime
     last_login: datetime | None = None
 

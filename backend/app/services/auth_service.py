@@ -51,7 +51,6 @@ class AuthService:
             name=row['name'],
             email=row['email'],
             username=row['username'],
-            role=row['role'],
             created_at=row.get('created_at'),
             last_login=row.get('last_login'),
         )
@@ -68,7 +67,6 @@ class AuthService:
             }
         access_token = create_access_token(
             subject=row['id'],
-            role=row.get('role', 'student'),
             expires_delta=timedelta(minutes=self.settings.ACCESS_TOKEN_EXPIRE_MINUTES),
             claims=token_claims,
         )
@@ -122,7 +120,6 @@ class AuthService:
             'name': name,
             'email': email.lower(),
             'username': username.lower(),
-            'role': 'student',
             'created_at': created_at or now_iso,
             'last_login': now_iso,
             'password_hash': None,
@@ -136,7 +133,6 @@ class AuthService:
             'name': metadata.get('full_name') or metadata.get('name') or 'Google User',
             'email': email,
             'username': self._normalize_username(email),
-            'role': 'student',
             'created_at': utc_now_iso(),
             'last_login': utc_now_iso(),
             'password_hash': None,
@@ -236,7 +232,6 @@ class AuthService:
             'name': payload.name,
             'email': email,
             'username': username,
-            'role': 'student',
             'created_at': utc_now_iso(),
             'last_login': utc_now_iso(),
             'password_hash': hash_password(payload.password),

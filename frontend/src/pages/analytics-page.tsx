@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Activity, BrainCircuit, Flame, Radar, Sparkles, Target, TrendingUp, Award, Clock, Zap } from 'lucide-react'
 
@@ -68,8 +68,72 @@ const recentActivity = [
   { action: 'Achieved 7-day streak', time: '1 day ago', icon: Flame },
 ]
 
+type FilterId = 'all' | 'physics' | 'chemistry' | 'math'
+
+const filterHeadline: Record<FilterId, string> = {
+  all: 'Mixed-subject signal across the full study system.',
+  physics: 'Physics is improving, but electricity is still the main pressure point.',
+  chemistry: 'Chemistry is stabilizing total score, especially on shorter drills.',
+  math: 'Math has the biggest upside if timing discipline improves this week.',
+}
+
+const readinessByFilter: Record<
+  FilterId,
+  Array<{ subject: string; score: number; delta: string; action: string }>
+> = {
+  all: [
+    { subject: 'Physics', score: 82, delta: '+6%', action: 'Push timed numericals and error-log repair.' },
+    { subject: 'Chemistry', score: 76, delta: '+4%', action: 'Keep recall loops short and daily.' },
+    { subject: 'Math', score: 71, delta: '+9%', action: 'Protect probability and calculus speed work.' },
+  ],
+  physics: [
+    { subject: 'Mechanics', score: 88, delta: '+3%', action: 'Maintain with one mixed drill every other day.' },
+    { subject: 'Electricity', score: 69, delta: '+8%', action: 'Rebuild circuits and capacitance under timers.' },
+    { subject: 'Modern Physics', score: 81, delta: '+5%', action: 'Convert notes into rapid-fire prompts.' },
+  ],
+  chemistry: [
+    { subject: 'Organic', score: 78, delta: '+7%', action: 'Tighten reagent exceptions and mechanism flow.' },
+    { subject: 'Inorganic', score: 68, delta: '+5%', action: 'Use high-frequency flash recall blocks.' },
+    { subject: 'Physical', score: 83, delta: '+2%', action: 'Keep one derivation recap per week.' },
+  ],
+  math: [
+    { subject: 'Calculus', score: 74, delta: '+9%', action: 'Keep integration practice in the morning slot.' },
+    { subject: 'Algebra', score: 70, delta: '+5%', action: 'Use mixed sheets to cut switching time.' },
+    { subject: 'Probability', score: 58, delta: '+11%', action: 'Run a dedicated repair lane before the weekend.' },
+  ],
+}
+
+const focusWindowsByFilter: Record<FilterId, Array<{ label: string; hours: string; note: string }>> = {
+  all: [
+    { label: 'Deep Work', hours: '6:30 AM - 8:30 AM', note: 'Use for numericals and hard problem sets.' },
+    { label: 'Revision', hours: '4:00 PM - 5:30 PM', note: 'Summaries, flashcards, and concept repair only.' },
+    { label: 'Light Recall', hours: '8:45 PM - 9:15 PM', note: 'No heavy study here. Keep it short.' },
+  ],
+  physics: [
+    { label: 'Problem Solving', hours: '6:15 AM - 7:45 AM', note: 'Best slot for heavy Physics numericals.' },
+    { label: 'Concept Repair', hours: '12:30 PM - 1:00 PM', note: 'Re-teach only the errors from the morning.' },
+    { label: 'Night Recall', hours: '8:15 PM - 8:45 PM', note: 'Formula chains and derivation checkpoints.' },
+  ],
+  chemistry: [
+    { label: 'Flash Revision', hours: '7:00 AM - 7:40 AM', note: 'Use for inorganic fact recall and formula sweeps.' },
+    { label: 'Mechanism Work', hours: '3:00 PM - 4:00 PM', note: 'Best slot for organic chains and reagent maps.' },
+    { label: 'Rapid Recap', hours: '9:00 PM - 9:20 PM', note: 'Convert each topic into a five-point memory lock.' },
+  ],
+  math: [
+    { label: 'Hard Problem Slot', hours: '5:45 AM - 7:15 AM', note: 'Use for probability and integration before distraction builds.' },
+    { label: 'Correction Slot', hours: '2:00 PM - 2:40 PM', note: 'Rework only the errors, not the full worksheet.' },
+    { label: 'Formula Recall', hours: '8:30 PM - 9:00 PM', note: 'Shortcuts and formula cards only.' },
+  ],
+}
+
 export function AnalyticsPage() {
-  const [activeFilter, setActiveFilter] = useState('all')
+  const [activeFilter, setActiveFilter] = useState<FilterId>('all')
+  const [rangeLabel, setRangeLabel] = useState('Last 7 days')
+  const readinessLanes = useMemo(() => readinessByFilter[activeFilter], [activeFilter])
+  const focusWindows = useMemo(() => focusWindowsByFilter[activeFilter], [activeFilter])
+  const readinessAverage = Math.round(
+    readinessLanes.reduce((sum, lane) => sum + lane.score, 0) / readinessLanes.length,
+  )
 
   return (
     <div className="relative space-y-6 pb-6">
@@ -126,7 +190,7 @@ export function AnalyticsPage() {
             transition={{ delay: 0.3 }}
           >
             Track study intensity, subject readiness, weak-topic drift, and accuracy trends with
-            animated charts and a stronger visual hierarchy.
+            animated charts and a stronger visual hierarchy. {filterHeadline[activeFilter]}
           </motion.p>
 
           <motion.div
@@ -135,7 +199,12 @@ export function AnalyticsPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
           >
-            <DateRangePicker />
+            <DateRangePicker
+              onRangeChange={({ start, end }) => {
+                const diff = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000))
+                setRangeLabel(`Last ${diff} days`)
+              }}
+            />
             <FilterTabs
               tabs={[
                 { id: 'all', label: 'All Subjects' },
@@ -144,8 +213,28 @@ export function AnalyticsPage() {
                 { id: 'math', label: 'Math' },
               ]}
               activeTab={activeFilter}
-              onChange={setActiveFilter}
+              onChange={(tabId) => setActiveFilter(tabId as FilterId)}
             />
+          </motion.div>
+
+          <motion.div
+            className="mt-6 grid gap-3 sm:grid-cols-3"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.46 }}
+          >
+            <div className="rounded-[1.4rem] border border-white/10 bg-white/5 p-4">
+              <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Window</p>
+              <p className="mt-3 text-xl font-bold text-white">{rangeLabel}</p>
+            </div>
+            <div className="rounded-[1.4rem] border border-white/10 bg-white/5 p-4">
+              <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Readiness Avg</p>
+              <p className="mt-3 text-xl font-bold text-white">{readinessAverage}%</p>
+            </div>
+            <div className="rounded-[1.4rem] border border-white/10 bg-white/5 p-4">
+              <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Current Focus</p>
+              <p className="mt-3 text-sm font-semibold text-white">{filterHeadline[activeFilter]}</p>
+            </div>
           </motion.div>
         </div>
       </motion.section>
@@ -252,25 +341,30 @@ export function AnalyticsPage() {
             transition={{ delay: 0.5 }}
           >
             <GlowingCard className="p-6" glowColor="rgba(124, 58, 237, 0.3)">
-              <CardTitle className="text-white">Recent Activity</CardTitle>
+              <CardTitle className="text-white">Focus Windows</CardTitle>
               <CardDescription className="mb-4 mt-1 text-slate-400">
-                Latest study actions and achievements
+                The best study slots for the currently selected subject lane.
               </CardDescription>
               <div className="space-y-3">
-                {recentActivity.map((activity, index) => (
+                {focusWindows.map((window, index) => (
                   <motion.div
-                    key={activity.action}
+                    key={window.label}
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.55 + index * 0.05 }}
                     className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/5 p-3"
                   >
                     <span className="rounded-lg bg-gradient-to-br from-cyan-400/20 to-violet-500/20 p-2">
-                      <activity.icon className="h-4 w-4 text-cyan-300" />
+                      <Clock className="h-4 w-4 text-cyan-300" />
                     </span>
                     <div className="flex-1">
-                      <p className="text-sm text-white">{activity.action}</p>
-                      <p className="text-xs text-slate-400">{activity.time}</p>
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm text-white">{window.label}</p>
+                        <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-300">
+                          {window.hours}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-xs text-slate-400">{window.note}</p>
                     </div>
                   </motion.div>
                 ))}
@@ -285,6 +379,49 @@ export function AnalyticsPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.55 }}
       >
+        <GlowingCard className="mb-4 p-6" glowColor="rgba(34, 211, 238, 0.28)">
+          <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <CardTitle className="text-white">Readiness Matrix</CardTitle>
+              <CardDescription className="mt-1 text-slate-400">
+                Score, recent delta, and the next immediate action for the selected filter.
+              </CardDescription>
+            </div>
+            <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs text-cyan-200">
+              Avg {readinessAverage}%
+            </span>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-3">
+            {readinessLanes.map((lane, index) => (
+              <motion.div
+                key={lane.subject}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.58 + index * 0.05 }}
+                className="rounded-[1.5rem] border border-white/10 bg-white/5 p-5"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-base font-semibold text-white">{lane.subject}</p>
+                  <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs text-slate-300">
+                    {lane.delta}
+                  </span>
+                </div>
+                <p className="mt-4 text-3xl font-bold text-white">{lane.score}%</p>
+                <div className="mt-3 h-2.5 rounded-full bg-white/10">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${lane.score}%` }}
+                    transition={{ delay: 0.64 + index * 0.05, duration: 0.45 }}
+                    className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-400 to-violet-500"
+                  />
+                </div>
+                <p className="mt-4 text-sm leading-6 text-slate-400">{lane.action}</p>
+              </motion.div>
+            ))}
+          </div>
+        </GlowingCard>
+
         <GlowingCard className="p-6" glowColor="rgba(236, 72, 153, 0.3)">
           <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
             <div>
@@ -328,6 +465,46 @@ export function AnalyticsPage() {
                   className="absolute inset-0 bg-gradient-to-br from-rose-400/5 to-pink-500/5 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
                   initial={false}
                 />
+              </motion.div>
+            ))}
+          </div>
+        </GlowingCard>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.62 }}
+      >
+        <GlowingCard className="p-6" glowColor="rgba(124, 58, 237, 0.3)">
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <div>
+              <CardTitle className="text-white">Recent Activity</CardTitle>
+              <CardDescription className="mt-1 text-slate-400">
+                Latest study actions and momentum signals from the dashboard.
+              </CardDescription>
+            </div>
+            <Award className="h-5 w-5 text-violet-300" />
+          </div>
+
+          <div className="grid gap-3 lg:grid-cols-3">
+            {recentActivity.map((activity, index) => (
+              <motion.div
+                key={activity.action}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.66 + index * 0.05 }}
+                className="rounded-[1.4rem] border border-white/10 bg-white/5 p-4"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="rounded-lg bg-gradient-to-br from-cyan-400/20 to-violet-500/20 p-2">
+                    <activity.icon className="h-4 w-4 text-cyan-300" />
+                  </span>
+                  <div>
+                    <p className="text-sm font-medium text-white">{activity.action}</p>
+                    <p className="text-xs text-slate-400">{activity.time}</p>
+                  </div>
+                </div>
               </motion.div>
             ))}
           </div>

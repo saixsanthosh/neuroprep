@@ -41,7 +41,6 @@ class UserResponse(BaseModel):
     name: str
     email: EmailStr
     username: str
-    role: str
     created_at: datetime | None = None
     last_login: datetime | None = None
 

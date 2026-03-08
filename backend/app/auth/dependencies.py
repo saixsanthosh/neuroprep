@@ -34,7 +34,6 @@ def get_current_user(
                 'name': payload['name'],
                 'email': payload['email'],
                 'username': payload['username'],
-                'role': payload.get('role', 'student'),
                 'created_at': payload.get('created_at'),
                 'last_login': payload.get('last_login'),
             }

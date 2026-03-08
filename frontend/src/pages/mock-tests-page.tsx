@@ -1,7 +1,8 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { Clock, Trophy, Target, AlertCircle, CheckCircle, XCircle, Sparkles, Award, TrendingUp, Zap } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
+import { getMockResults, startMockSession, submitMockSession, type MockResult } from '../lib/api'
 import { Button } from '../components/ui/button'
 import { CardDescription, CardTitle } from '../components/ui/card'
 import { AnimatedGradientOrb } from '../components/ui/animated-gradient-orb'
@@ -47,8 +48,268 @@ const recentResults = [
   { exam: 'College Midterm Sim', score: 78, total: 100, rank: 42, accuracy: 78, date: '1 week ago' },
 ]
 
+type MockQuestion = {
+  id: string
+  prompt: string
+  options: string[]
+  answerIndex: number
+  topic: string
+}
+
+type ResultSummary = {
+  score: number
+  total: number
+  correct: number
+  wrong: number
+  unanswered: number
+  accuracy: number
+  rank: number
+  weakTopic: string
+}
+
+const examQuestions: Record<string, MockQuestion[]> = {
+  'jee-full': [
+    {
+      id: 'jee-1',
+      prompt: 'A charge q is placed at the center of a cube. What is the electric flux through one face of the cube?',
+      options: ['q / 6e0', 'q / e0', 'q / 3e0', 'zero'],
+      answerIndex: 0,
+      topic: 'Electrostatics',
+    },
+    {
+      id: 'jee-2',
+      prompt: 'If sin(x) + cos(x) = sqrt(2), then x is',
+      options: ['0', 'pi / 4', 'pi / 2', 'pi'],
+      answerIndex: 1,
+      topic: 'Trigonometry',
+    },
+    {
+      id: 'jee-3',
+      prompt: 'Which reagent converts aldehydes into primary alcohols?',
+      options: ['KMnO4', 'LiAlH4', 'Br2 / Fe', 'HNO3'],
+      answerIndex: 1,
+      topic: 'Organic Chemistry',
+    },
+    {
+      id: 'jee-4',
+      prompt: 'The slope of the tangent to y = x^2 at x = 3 is',
+      options: ['3', '6', '9', '12'],
+      answerIndex: 1,
+      topic: 'Calculus',
+    },
+  ],
+  'neet-bio': [
+    {
+      id: 'neet-1',
+      prompt: 'The functional unit of the kidney is',
+      options: ['Neuron', 'Nephron', 'Alveolus', 'Sarcomere'],
+      answerIndex: 1,
+      topic: 'Human Physiology',
+    },
+    {
+      id: 'neet-2',
+      prompt: 'DNA replication occurs during which phase?',
+      options: ['G1', 'S', 'G2', 'M'],
+      answerIndex: 1,
+      topic: 'Cell Cycle',
+    },
+    {
+      id: 'neet-3',
+      prompt: 'Which pigment is primarily responsible for photosynthesis?',
+      options: ['Carotene', 'Xanthophyll', 'Chlorophyll a', 'Anthocyanin'],
+      answerIndex: 2,
+      topic: 'Plant Physiology',
+    },
+    {
+      id: 'neet-4',
+      prompt: 'Which blood cells are directly involved in clotting?',
+      options: ['RBCs', 'Neutrophils', 'Platelets', 'Lymphocytes'],
+      answerIndex: 2,
+      topic: 'Human Physiology',
+    },
+  ],
+  'upsc-gs': [
+    {
+      id: 'upsc-1',
+      prompt: 'The Directive Principles of State Policy are contained in which part of the Indian Constitution?',
+      options: ['Part III', 'Part IV', 'Part IVA', 'Part V'],
+      answerIndex: 1,
+      topic: 'Polity',
+    },
+    {
+      id: 'upsc-2',
+      prompt: 'El Nino is associated with which ocean?',
+      options: ['Arctic Ocean', 'Indian Ocean', 'Pacific Ocean', 'Atlantic Ocean'],
+      answerIndex: 2,
+      topic: 'Geography',
+    },
+    {
+      id: 'upsc-3',
+      prompt: 'The Harappan site known for dockyard evidence is',
+      options: ['Lothal', 'Kalibangan', 'Banawali', 'Dholavira'],
+      answerIndex: 0,
+      topic: 'History',
+    },
+    {
+      id: 'upsc-4',
+      prompt: 'Fiscal deficit refers to',
+      options: [
+        'Revenue expenditure minus revenue receipts',
+        'Total expenditure minus total receipts excluding borrowings',
+        'Capital expenditure minus capital receipts',
+        'Tax revenue minus non-tax revenue',
+      ],
+      answerIndex: 1,
+      topic: 'Economy',
+    },
+  ],
+}
+
 export function MockTestsPage() {
   const [selectedExam, setSelectedExam] = useState<string | null>(null)
+  const [runningExamId, setRunningExamId] = useState<string | null>(null)
+  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
+  const [answers, setAnswers] = useState<Record<string, number>>({})
+  const [flaggedQuestions, setFlaggedQuestions] = useState<Record<string, boolean>>({})
+  const [secondsLeft, setSecondsLeft] = useState(0)
+  const [recentResultItems, setRecentResultItems] = useState(recentResults)
+  const [resultSummary, setResultSummary] = useState<ResultSummary | null>(null)
+  const [loadingResults, setLoadingResults] = useState(true)
+
+  const activeExam = useMemo(() => exams.find((exam) => exam.id === runningExamId) ?? null, [runningExamId])
+  const activeQuestions = runningExamId ? examQuestions[runningExamId] ?? [] : []
+  const activeQuestion = activeQuestions[currentQuestionIndex]
+
+  useEffect(() => {
+    let active = true
+
+    const loadResults = async () => {
+      try {
+        const results = await getMockResults(5)
+        if (!active || !results.length) return
+        setRecentResultItems(
+          results.map((result: MockResult) => ({
+            exam: result.exam_type,
+            score: Math.round(result.score),
+            total: 100,
+            rank: result.rank,
+            accuracy: Math.round(result.accuracy),
+            date: new Date(result.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          })),
+        )
+      } catch {
+        // Keep seeded mock results when the live call is unavailable.
+      } finally {
+        if (active) setLoadingResults(false)
+      }
+    }
+
+    void loadResults()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!runningExamId || secondsLeft <= 0) return
+    const timer = window.setInterval(() => {
+      setSecondsLeft((prev) => prev - 1)
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [runningExamId, secondsLeft])
+
+  useEffect(() => {
+    if (runningExamId && secondsLeft === 0 && activeQuestions.length) {
+      void handleSubmitExam()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [secondsLeft, runningExamId])
+
+  const formatSeconds = (value: number) => {
+    const hours = Math.floor(value / 3600)
+    const minutes = Math.floor((value % 3600) / 60)
+    const seconds = value % 60
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  }
+
+  const beginExam = async () => {
+    const exam = exams.find((item) => item.id === selectedExam)
+    if (!exam) return
+
+    try {
+      const response = await startMockSession({
+        exam_type: exam.title,
+        total_questions: examQuestions[exam.id]?.length ?? exam.questions,
+        duration_minutes: Number.parseInt(exam.duration, 10),
+      })
+      setSessionId(response.session_id)
+    } catch {
+      setSessionId(`mock-${Date.now()}`)
+    }
+
+    setRunningExamId(exam.id)
+    setCurrentQuestionIndex(0)
+    setAnswers({})
+    setFlaggedQuestions({})
+    setSecondsLeft((Number.parseInt(exam.duration, 10) || 60) * 60)
+    setResultSummary(null)
+    setSelectedExam(null)
+  }
+
+  const handleSubmitExam = async () => {
+    if (!activeExam || !activeQuestions.length) return
+
+    const correct = activeQuestions.filter((question) => answers[question.id] === question.answerIndex).length
+    const answered = Object.keys(answers).length
+    const wrong = answered - correct
+    const unanswered = activeQuestions.length - answered
+    const score = activeExam.negativeMarking ? correct * 4 - wrong : correct * 4
+    const normalizedScore = Math.max(0, score)
+    const total = activeQuestions.length * 4
+    const accuracy = Math.round((correct / activeQuestions.length) * 100)
+    const rank = Math.max(1, 750 - accuracy * 6 + wrong * 12)
+    const weakTopic =
+      activeQuestions.find((question) => answers[question.id] !== question.answerIndex)?.topic ?? 'No weak topic detected'
+
+    try {
+      await submitMockSession({
+        exam_type: activeExam.title,
+        score: normalizedScore,
+        rank,
+        time_taken: Math.max(1, Number.parseInt(activeExam.duration, 10) * 60 - secondsLeft),
+        total_questions: activeQuestions.length,
+        correct_answers: correct,
+      })
+    } catch {
+      // Keep the exam UI working even if persistence is unavailable.
+    }
+
+    setRecentResultItems((current) => [
+      {
+        exam: activeExam.title,
+        score: normalizedScore,
+        total,
+        rank,
+        accuracy,
+        date: 'Just now',
+      },
+      ...current,
+    ].slice(0, 5))
+
+    setResultSummary({
+      score: normalizedScore,
+      total,
+      correct,
+      wrong,
+      unanswered,
+      accuracy,
+      rank,
+      weakTopic,
+    })
+    setRunningExamId(null)
+    setSessionId(null)
+  }
 
   return (
     <div className="relative space-y-6 pb-6">
@@ -115,9 +376,13 @@ export function MockTestsPage() {
             transition={{ delay: 0.4 }}
           >
             {[
-              { label: 'Tests Taken', value: 24, icon: Trophy },
-              { label: 'Avg Accuracy', value: '78%', icon: Target },
-              { label: 'Best Rank', value: 42, icon: Award },
+              { label: 'Tests Taken', value: recentResultItems.length || 1, icon: Trophy },
+              {
+                label: 'Avg Accuracy',
+                value: `${Math.round(recentResultItems.reduce((sum, result) => sum + result.accuracy, 0) / recentResultItems.length)}%`,
+                icon: Target,
+              },
+              { label: 'Best Rank', value: Math.min(...recentResultItems.map((result) => result.rank)), icon: Award },
               { label: 'Study Hours', value: 156, icon: Clock },
             ].map((stat, index) => (
               <motion.div
@@ -204,14 +469,18 @@ export function MockTestsPage() {
             <div>
               <CardTitle className="text-white">Recent Mock Results</CardTitle>
               <CardDescription className="mt-1 text-slate-400">
-                Last three test outcomes and analysis snapshots.
+                Latest timed sessions, including any mock you submit from this page.
               </CardDescription>
             </div>
             <TrendingUp className="h-5 w-5 text-cyan-300" />
           </div>
 
           <div className="space-y-3">
-            {recentResults.map((result, index) => (
+            {loadingResults ? (
+              <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4 text-sm text-slate-400">
+                Loading stored mock results...
+              </div>
+            ) : recentResultItems.map((result, index) => (
               <motion.div
                 key={result.exam}
                 initial={{ opacity: 0, x: -10 }}
@@ -303,10 +572,232 @@ export function MockTestsPage() {
                 <Button variant="secondary" className="flex-1" onClick={() => setSelectedExam(null)}>
                   Cancel
                 </Button>
-                <Button className="flex-1">
+                <Button className="flex-1" onClick={() => void beginExam()}>
                   Begin Exam
                   <Zap className="h-4 w-4" />
                 </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {activeExam && activeQuestion && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 overflow-auto bg-black/85 p-4 backdrop-blur-sm"
+          >
+            <div className="mx-auto grid min-h-full w-full max-w-7xl gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+              <motion.div
+                initial={{ x: -16, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: -16, opacity: 0 }}
+                className="rounded-[2rem] border border-white/10 bg-[linear-gradient(160deg,rgba(8,12,28,0.98),rgba(11,20,46,0.95))] p-6 shadow-[0_40px_100px_rgba(0,0,0,0.5)]"
+              >
+                <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.18em] text-cyan-300">Live Exam Session</p>
+                    <h2 className="mt-2 text-2xl font-black text-white">{activeExam.title}</h2>
+                    <p className="mt-2 text-sm text-slate-400">Session {sessionId ?? 'starting'} · Topic {activeQuestion.topic}</p>
+                  </div>
+                  <div className="rounded-[1.4rem] border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-right">
+                    <p className="text-xs uppercase tracking-[0.18em] text-rose-200">Time Left</p>
+                    <p className="mt-1 text-2xl font-bold text-white">{formatSeconds(secondsLeft)}</p>
+                  </div>
+                </div>
+
+                <div className="rounded-[1.7rem] border border-white/10 bg-white/5 p-6">
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
+                    Question {currentQuestionIndex + 1} of {activeQuestions.length}
+                  </p>
+                  <p className="mt-4 text-xl font-semibold leading-8 text-white">{activeQuestion.prompt}</p>
+
+                  <div className="mt-6 space-y-3">
+                    {activeQuestion.options.map((option, index) => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => setAnswers((prev) => ({ ...prev, [activeQuestion.id]: index }))}
+                        className={`w-full rounded-[1.4rem] border px-4 py-4 text-left transition ${
+                          answers[activeQuestion.id] === index
+                            ? 'border-cyan-300/30 bg-cyan-300/10 text-white'
+                            : 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10'
+                        }`}
+                      >
+                        <span className="text-xs uppercase tracking-[0.16em] text-slate-500">
+                          Option {String.fromCharCode(65 + index)}
+                        </span>
+                        <p className="mt-2 text-sm leading-6">{option}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <Button
+                    variant="secondary"
+                    onClick={() => setCurrentQuestionIndex((prev) => Math.max(0, prev - 1))}
+                    disabled={currentQuestionIndex === 0}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() =>
+                      setFlaggedQuestions((prev) => ({ ...prev, [activeQuestion.id]: !prev[activeQuestion.id] }))
+                    }
+                  >
+                    {flaggedQuestions[activeQuestion.id] ? 'Unflag' : 'Flag'} question
+                  </Button>
+                  <Button
+                    onClick={() =>
+                      setCurrentQuestionIndex((prev) => Math.min(activeQuestions.length - 1, prev + 1))
+                    }
+                    disabled={currentQuestionIndex === activeQuestions.length - 1}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ x: 16, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: 16, opacity: 0 }}
+                className="space-y-4"
+              >
+                <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(160deg,rgba(8,12,28,0.98),rgba(11,20,46,0.95))] p-6 shadow-[0_40px_100px_rgba(0,0,0,0.4)]">
+                  <CardTitle className="text-white">Navigator</CardTitle>
+                  <CardDescription className="mt-1 text-slate-400">
+                    Jump to any question and monitor answered coverage in real time.
+                  </CardDescription>
+                  <div className="mt-4 grid grid-cols-5 gap-2">
+                    {activeQuestions.map((question, index) => {
+                      const isAnswered = answers[question.id] !== undefined
+                      const isFlagged = flaggedQuestions[question.id]
+                      return (
+                        <button
+                          key={question.id}
+                          type="button"
+                          onClick={() => setCurrentQuestionIndex(index)}
+                          className={`rounded-xl border px-3 py-3 text-sm transition ${
+                            currentQuestionIndex === index
+                              ? 'border-cyan-300/30 bg-cyan-300/10 text-white'
+                              : isAnswered
+                                ? 'border-emerald-300/20 bg-emerald-300/10 text-emerald-100'
+                                : 'border-white/10 bg-white/5 text-slate-300'
+                          }`}
+                        >
+                          {index + 1}
+                          {isFlagged ? <span className="ml-1 text-rose-300">*</span> : null}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(160deg,rgba(8,12,28,0.98),rgba(11,20,46,0.95))] p-6 shadow-[0_40px_100px_rgba(0,0,0,0.4)]">
+                  <CardTitle className="text-white">Session Summary</CardTitle>
+                  <div className="mt-4 space-y-3 text-sm">
+                    <div className="flex items-center justify-between text-slate-300">
+                      <span>Answered</span>
+                      <span>{Object.keys(answers).length}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-slate-300">
+                      <span>Flagged</span>
+                      <span>{Object.values(flaggedQuestions).filter(Boolean).length}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-slate-300">
+                      <span>Remaining</span>
+                      <span>{activeQuestions.length - Object.keys(answers).length}</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 flex gap-3">
+                    <Button
+                      variant="secondary"
+                      className="flex-1"
+                      onClick={() => {
+                        setRunningExamId(null)
+                        setSessionId(null)
+                      }}
+                    >
+                      Exit
+                    </Button>
+                    <Button className="flex-1" onClick={() => void handleSubmitExam()}>
+                      Submit exam
+                    </Button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </motion.div>
+        )}
+
+        {resultSummary && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+            onClick={() => setResultSummary(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.94, y: 16 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.94, y: 16 }}
+              onClick={(event) => event.stopPropagation()}
+              className="w-full max-w-2xl rounded-[2rem] border border-white/10 bg-[linear-gradient(160deg,rgba(8,12,28,0.98),rgba(11,20,46,0.95))] p-8 shadow-[0_40px_100px_rgba(0,0,0,0.5)]"
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.18em] text-cyan-300">Mock submitted</p>
+                  <h2 className="mt-2 text-2xl font-black text-white">Result summary</h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setResultSummary(null)}
+                  className="rounded-xl border border-white/10 bg-white/5 p-2 text-slate-300 transition hover:bg-white/10"
+                >
+                  <XCircle className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                <div className="rounded-[1.4rem] border border-cyan-300/20 bg-cyan-300/10 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-cyan-100">Score</p>
+                  <p className="mt-2 text-3xl font-bold text-white">
+                    {resultSummary.score}/{resultSummary.total}
+                  </p>
+                </div>
+                <div className="rounded-[1.4rem] border border-violet-300/20 bg-violet-300/10 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-violet-100">Rank estimate</p>
+                  <p className="mt-2 text-3xl font-bold text-white">#{resultSummary.rank}</p>
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-[1.3rem] border border-white/10 bg-white/5 p-4">
+                  <p className="text-xs text-slate-500">Correct</p>
+                  <p className="mt-2 text-xl font-semibold text-emerald-300">{resultSummary.correct}</p>
+                </div>
+                <div className="rounded-[1.3rem] border border-white/10 bg-white/5 p-4">
+                  <p className="text-xs text-slate-500">Wrong</p>
+                  <p className="mt-2 text-xl font-semibold text-rose-300">{resultSummary.wrong}</p>
+                </div>
+                <div className="rounded-[1.3rem] border border-white/10 bg-white/5 p-4">
+                  <p className="text-xs text-slate-500">Accuracy</p>
+                  <p className="mt-2 text-xl font-semibold text-cyan-200">{resultSummary.accuracy}%</p>
+                </div>
+              </div>
+
+              <div className="mt-5 rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Weak topic detected</p>
+                <p className="mt-2 text-base font-semibold text-white">{resultSummary.weakTopic}</p>
+                <p className="mt-2 text-sm text-slate-400">
+                  Use the notes and analytics pages to turn this into the next revision lane.
+                </p>
               </div>
             </motion.div>
           </motion.div>

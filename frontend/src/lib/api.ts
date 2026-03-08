@@ -30,7 +30,6 @@ export type User = {
   name: string
   email: string
   username: string
-  role: string
   created_at?: string
   last_login?: string
 }
@@ -54,6 +53,34 @@ export type WeeklyReportResponse = {
   summary: string
   generated_at: string
   focus_subjects: string[]
+}
+
+export type MockSessionResponse = {
+  session_id: string
+  exam_type: string
+  total_questions: number
+  duration_minutes: number
+  message: string
+}
+
+export type MockSubmitPayload = {
+  exam_type: string
+  score: number
+  rank: number
+  time_taken: number
+  total_questions: number
+  correct_answers: number
+}
+
+export type MockResult = {
+  id: string
+  user_id: string
+  exam_type: string
+  score: number
+  rank: number
+  time_taken: number
+  accuracy: number
+  created_at: string
 }
 
 export async function login(identifier: string, password: string): Promise<AuthResponse> {
@@ -97,5 +124,24 @@ export async function requestPasswordReset(email: string, redirect_to: string): 
 
 export async function getWeeklyReport(): Promise<WeeklyReportResponse> {
   const { data } = await api.get<WeeklyReportResponse>('/analytics/weekly-report')
+  return data
+}
+
+export async function startMockSession(payload: {
+  exam_type: string
+  total_questions: number
+  duration_minutes: number
+}): Promise<MockSessionResponse> {
+  const { data } = await api.post<MockSessionResponse>('/mock/start', payload)
+  return data
+}
+
+export async function submitMockSession(payload: MockSubmitPayload): Promise<MockResult> {
+  const { data } = await api.post<MockResult>('/mock/submit', payload)
+  return data
+}
+
+export async function getMockResults(limit = 5): Promise<MockResult[]> {
+  const { data } = await api.get<MockResult[]>(`/mock/results?limit=${limit}`)
   return data
 }
