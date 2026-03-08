@@ -34,16 +34,20 @@ def list_demo_users() -> list[dict]:
 
 
 def _get_client():
-    from app.database.supabase_client import get_supabase_admin_client
+    from app.database.supabase_client import get_supabase_admin_client, get_supabase_public_client
 
-    return get_supabase_admin_client()
+    return get_supabase_admin_client(), get_supabase_public_client()
 
 
 class AuthService:
     def __init__(self):
         self.settings = get_settings()
         self.demo_mode = getattr(self.settings, 'DEMO_MODE', False)
-        self.client = None if self.demo_mode else _get_client()
+        if self.demo_mode:
+            self.db_client = None
+            self.auth_client = None
+        else:
+            self.db_client, self.auth_client = _get_client()
 
     def _to_user_response(self, row: dict) -> UserResponse:
         return UserResponse(
@@ -91,7 +95,7 @@ class AuthService:
             return identifier.lower()
 
         lookup = (
-            self.client.table('users')
+            self.db_client.table('users')
             .select('email')
             .eq('username', identifier.lower())
             .limit(1)
@@ -146,16 +150,16 @@ class AuthService:
                 detail='Google authentication did not return an email address',
             )
 
-        lookup = self.client.table('users').select('*').eq('email', email).limit(1).execute()
+        lookup = self.db_client.table('users').select('*').eq('email', email).limit(1).execute()
         if lookup.data:
             user_row = lookup.data[0]
             now_iso = utc_now_iso()
-            self.client.table('users').update({'last_login': now_iso}).eq('id', user_row['id']).execute()
+            self.db_client.table('users').update({'last_login': now_iso}).eq('id', user_row['id']).execute()
             user_row['last_login'] = now_iso
             return user_row
 
         user_row = self._build_google_user_row(auth_user)
-        inserted = self.client.table('users').insert(user_row).execute()
+        inserted = self.db_client.table('users').insert(user_row).execute()
         if not inserted.data:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -205,19 +209,19 @@ class AuthService:
         email = payload.email.lower()
         username = payload.username.lower()
 
-        email_exists = self.client.table('users').select('id').eq('email', email).limit(1).execute()
+        email_exists = self.db_client.table('users').select('id').eq('email', email).limit(1).execute()
         if email_exists.data:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Email already registered')
 
         username_exists = (
-            self.client.table('users').select('id').eq('username', username).limit(1).execute()
+            self.db_client.table('users').select('id').eq('username', username).limit(1).execute()
         )
         if username_exists.data:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Username already in use')
 
         auth_user_id = str(uuid4())
         try:
-            auth_response = self.client.auth.sign_up({'email': email, 'password': payload.password})
+            auth_response = self.auth_client.auth.sign_up({'email': email, 'password': payload.password})
             auth_user = getattr(auth_response, 'user', None)
             if auth_user and getattr(auth_user, 'id', None):
                 auth_user_id = str(auth_user.id)
@@ -237,13 +241,13 @@ class AuthService:
             'password_hash': hash_password(payload.password),
         }
 
-        inserted = self.client.table('users').insert(row).execute()
+        inserted = self.db_client.table('users').insert(row).execute()
         if not inserted.data:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Failed to create user')
 
         return self._issue_auth_response(
             inserted.data[0],
-            'Registration successful. Verify your email in Supabase Auth to activate full login.',
+            'Registration successful.',
         )
 
     def login(self, payload: LoginRequest) -> AuthResponse:
@@ -251,7 +255,7 @@ class AuthService:
             return self._demo_login(payload)
 
         email = self._resolve_email(payload.identifier)
-        user_response = self.client.table('users').select('*').eq('email', email).limit(1).execute()
+        user_response = self.db_client.table('users').select('*').eq('email', email).limit(1).execute()
         if not user_response.data:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid credentials')
 
@@ -260,12 +264,12 @@ class AuthService:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid credentials')
 
         try:
-            self.client.auth.sign_in_with_password({'email': email, 'password': payload.password})
+            self.auth_client.auth.sign_in_with_password({'email': email, 'password': payload.password})
         except Exception:
             pass
 
         now_iso = utc_now_iso()
-        self.client.table('users').update({'last_login': now_iso}).eq('id', user_row['id']).execute()
+        self.db_client.table('users').update({'last_login': now_iso}).eq('id', user_row['id']).execute()
         user_row['last_login'] = now_iso
 
         return self._issue_auth_response(user_row, 'Login successful')
@@ -299,7 +303,7 @@ class AuthService:
                 )
             else:
                 duplicate_response = (
-                    self.client.table('users').select('id').eq('username', next_username).limit(1).execute()
+                    self.db_client.table('users').select('id').eq('username', next_username).limit(1).execute()
                 )
                 duplicate = (
                     duplicate_response.data[0]
@@ -313,7 +317,7 @@ class AuthService:
             user_row = {**current_user, **updates}
             return self._to_user_response(user_row)
 
-        updated_response = self.client.table('users').update(updates).eq('id', current_user['id']).execute()
+        updated_response = self.db_client.table('users').update(updates).eq('id', current_user['id']).execute()
         user_row = updated_response.data[0] if updated_response.data else {**current_user, **updates}
         return self._to_user_response(user_row)
 
@@ -325,7 +329,7 @@ class AuthService:
             )
 
         try:
-            self.client.auth.reset_password_email(
+            self.auth_client.auth.reset_password_email(
                 email,
                 {'redirect_to': payload.redirect_to or 'http://127.0.0.1:5173/login'},
             )
@@ -343,7 +347,7 @@ class AuthService:
 
         if payload.id_token:
             try:
-                auth_response = self.client.auth.sign_in_with_id_token(
+                auth_response = self.auth_client.auth.sign_in_with_id_token(
                     {'provider': 'google', 'token': payload.id_token}
                 )
                 auth_user = getattr(auth_response, 'user', None)
@@ -360,7 +364,7 @@ class AuthService:
 
         redirect_to = payload.redirect_to or 'http://127.0.0.1:5173/auth/callback'
         try:
-            oauth_response = self.client.auth.sign_in_with_oauth(
+            oauth_response = self.auth_client.auth.sign_in_with_oauth(
                 {
                     'provider': 'google',
                     'options': {
@@ -396,7 +400,7 @@ class AuthService:
         access_token = payload.access_token
         if payload.code:
             try:
-                response = self.client.auth.exchange_code_for_session(
+                response = self.auth_client.auth.exchange_code_for_session(
                     {
                         'auth_code': payload.code,
                         'redirect_to': payload.redirect_to or 'http://127.0.0.1:5173/auth/callback',
@@ -417,7 +421,7 @@ class AuthService:
             )
 
         try:
-            auth_user_response = self.client.auth.get_user(access_token)
+            auth_user_response = self.auth_client.auth.get_user(access_token)
             auth_user = getattr(auth_user_response, 'user', None) or auth_user_response
         except Exception as exc:
             raise HTTPException(
