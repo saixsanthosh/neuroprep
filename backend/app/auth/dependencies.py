@@ -28,6 +28,16 @@ def get_current_user(
 
     settings = get_settings()
     if getattr(settings, 'DEMO_MODE', False):
+        if payload.get('email') and payload.get('username') and payload.get('name'):
+            return {
+                'id': user_id,
+                'name': payload['name'],
+                'email': payload['email'],
+                'username': payload['username'],
+                'role': payload.get('role', 'student'),
+                'created_at': payload.get('created_at'),
+                'last_login': payload.get('last_login'),
+            }
         user = get_demo_user(user_id)
         if not user:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='User not found')

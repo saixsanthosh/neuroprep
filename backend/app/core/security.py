@@ -19,12 +19,19 @@ def verify_password(plain_password: str, password_hash: str | None) -> bool:
     return pwd_context.verify(plain_password, password_hash)
 
 
-def create_access_token(subject: str, role: str, expires_delta: timedelta | None = None) -> str:
+def create_access_token(
+    subject: str,
+    role: str,
+    expires_delta: timedelta | None = None,
+    claims: dict[str, Any] | None = None,
+) -> str:
     settings = get_settings()
     expires_at = datetime.now(timezone.utc) + (
         expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     payload = {'sub': subject, 'role': role, 'exp': expires_at}
+    if claims:
+        payload.update(claims)
     return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 

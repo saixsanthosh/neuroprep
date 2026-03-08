@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from uuid import uuid4
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from fastapi import HTTPException, status
 
@@ -57,10 +57,20 @@ class AuthService:
         )
 
     def _issue_auth_response(self, row: dict, message: str) -> AuthResponse:
+        token_claims = None
+        if self.demo_mode:
+            token_claims = {
+                'name': row['name'],
+                'email': row['email'],
+                'username': row['username'],
+                'created_at': row.get('created_at'),
+                'last_login': row.get('last_login'),
+            }
         access_token = create_access_token(
             subject=row['id'],
             role=row.get('role', 'student'),
             expires_delta=timedelta(minutes=self.settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+            claims=token_claims,
         )
         return AuthResponse(
             user=self._to_user_response(row),
@@ -97,6 +107,27 @@ class AuthService:
         raw = (email.split('@')[0] if email and '@' in email else fallback).strip().lower()
         normalized = ''.join(char if char.isalnum() or char == '_' else '_' for char in raw).strip('_')
         return normalized or fallback
+
+    def _build_demo_user_row(
+        self,
+        *,
+        email: str,
+        username: str,
+        name: str,
+        role: str = 'student',
+        created_at: str | None = None,
+    ) -> dict:
+        now_iso = utc_now_iso()
+        return {
+            'id': str(uuid5(NAMESPACE_URL, f'neuroprep-demo:{email.lower()}:{role}')),
+            'name': name,
+            'email': email.lower(),
+            'username': username.lower(),
+            'role': role,
+            'created_at': created_at or now_iso,
+            'last_login': now_iso,
+            'password_hash': None,
+        }
 
     def _build_google_user_row(self, auth_user: object, role: str = 'student') -> dict:
         email = str(getattr(auth_user, 'email', '')).lower()
@@ -138,59 +169,43 @@ class AuthService:
         return inserted.data[0]
 
     def _demo_register(self, payload: RegisterRequest) -> AuthResponse:
-        email = payload.email.lower()
-        username = payload.username.lower()
-        for user in _demo_users.values():
-            if user.get('email') == email:
-                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Email already registered')
-            if user.get('username') == username:
-                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Username already in use')
-
-        user_id = str(uuid4())
-        now_iso = utc_now_iso()
-        row = {
-            'id': user_id,
-            'name': payload.name,
-            'email': email,
-            'username': username,
-            'role': payload.role,
-            'created_at': now_iso,
-            'last_login': now_iso,
-            'password_hash': hash_password(payload.password),
-        }
-        _demo_users[user_id] = row
+        row = self._build_demo_user_row(
+            email=payload.email.lower(),
+            username=payload.username.lower(),
+            name=payload.name,
+            role=payload.role,
+        )
         return self._issue_auth_response(row, 'Registration successful.')
 
     def _demo_login(self, payload: LoginRequest) -> AuthResponse:
-        email = self._resolve_email(payload.identifier)
-        for user in _demo_users.values():
-            if user.get('email') == email:
-                if not verify_password(payload.password, user.get('password_hash')):
-                    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid credentials')
-                user['last_login'] = utc_now_iso()
-                return self._issue_auth_response(user, 'Login successful')
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid credentials')
+        identifier = payload.identifier.strip().lower()
+        if not identifier:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid credentials')
+
+        if '@' in identifier:
+            email = identifier
+            username = self._normalize_username(identifier)
+        else:
+            username = identifier
+            email = f'{identifier}@demo.neuroprep.app'
+
+        row = self._build_demo_user_row(
+            email=email,
+            username=username,
+            name=username.replace('_', ' ').title(),
+            role='student',
+        )
+        return self._issue_auth_response(row, 'Login successful')
 
     def _demo_google_auth(self, role: str = 'student') -> AuthResponse:
         normalized_role = role if role in {'student', 'teacher', 'admin'} else 'student'
-        email = f'google.{normalized_role}@example.com'
-        existing = next((user for user in _demo_users.values() if user.get('email') == email), None)
-        if not existing:
-            now_iso = utc_now_iso()
-            existing = {
-                'id': str(uuid4()),
-                'name': f'Google Demo {normalized_role.title()}',
-                'email': email,
-                'username': f'google_{normalized_role}',
-                'role': normalized_role,
-                'created_at': now_iso,
-                'last_login': now_iso,
-                'password_hash': None,
-            }
-            _demo_users[existing['id']] = existing
-        else:
-            existing['last_login'] = utc_now_iso()
-        return self._issue_auth_response(existing, 'Google login successful')
+        row = self._build_demo_user_row(
+            email=f'google.{normalized_role}@demo.neuroprep.app',
+            username=f'google_{normalized_role}',
+            name=f'Google Demo {normalized_role.title()}',
+            role=normalized_role,
+        )
+        return self._issue_auth_response(row, 'Google login successful')
 
     def register(self, payload: RegisterRequest) -> AuthResponse:
         if self.demo_mode:
@@ -305,10 +320,7 @@ class AuthService:
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Username already in use')
 
         if self.demo_mode:
-            user_row = _demo_users.get(current_user['id'])
-            if not user_row:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User not found')
-            user_row.update(updates)
+            user_row = {**current_user, **updates}
             return self._to_user_response(user_row)
 
         updated_response = self.client.table('users').update(updates).eq('id', current_user['id']).execute()
