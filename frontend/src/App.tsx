@@ -1,10 +1,14 @@
 import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 
+import { RequireAuth } from './components/auth/require-auth'
 import { Skeleton } from './components/ui/skeleton'
 import { DashboardLayout } from './pages/dashboard-layout'
 import { LandingPage } from './pages/landing-page'
+import { LoginPage } from './pages/login-page'
+import { NeuroProject } from './pages/neuroproject'
 import { NotFoundPage } from './pages/not-found-page'
+import { RegisterPage } from './pages/register-page'
 
 const DashboardHomePage = lazy(() =>
   import('./pages/dashboard-home-page').then((module) => ({ default: module.DashboardHomePage })),
@@ -43,9 +47,19 @@ function App() {
     <Suspense fallback={<RouteLoader />}>
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/neuroproject" element={<NeuroProject />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
         <Route path="/home" element={<Navigate to="/" replace />} />
 
-        <Route path="/dashboard" element={<DashboardLayout />}>
+        <Route
+          path="/dashboard"
+          element={
+            <RequireAuth>
+              <DashboardLayout />
+            </RequireAuth>
+          }
+        >
           <Route index element={<DashboardHomePage />} />
           <Route path="ai-tutor" element={<AITutorPage />} />
           <Route path="notes" element={<NotesPage />} />

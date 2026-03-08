@@ -2,16 +2,17 @@ import * as React from 'react'
 
 import { cn } from '../../lib/utils'
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline'
 type ButtonSize = 'sm' | 'md' | 'lg'
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-soft-glow hover:from-primary-400 hover:to-primary-500',
+    'border border-cyan-300/15 bg-[linear-gradient(135deg,rgba(56,189,248,0.92),rgba(124,58,237,0.9))] text-white shadow-soft-glow hover:from-primary-400 hover:to-primary-500',
   secondary:
-    'glass text-[var(--text-main)] hover:border-accent-cyan/60 hover:text-white',
+    'border border-white/10 bg-white/10 text-[var(--text-main)] hover:border-accent-cyan/60 hover:bg-white/15 hover:text-white',
   ghost: 'bg-transparent text-[var(--text-main)] hover:bg-white/10',
   danger: 'bg-red-500 text-white hover:bg-red-400',
+  outline: 'border border-white/20 bg-transparent text-[var(--text-main)] hover:bg-white/10',
 }
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -31,7 +32,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         className={cn(
-          'inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-all duration-300 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-accent-cyan/60 focus:ring-offset-2 focus:ring-offset-transparent disabled:pointer-events-none disabled:opacity-50',
+          'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl font-medium transition-all duration-300 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-accent-cyan/60 focus:ring-offset-2 focus:ring-offset-transparent disabled:pointer-events-none disabled:opacity-50',
           variantClasses[variant],
           sizeClasses[size],
           className,
