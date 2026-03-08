@@ -1,0 +1,97 @@
+NeuroPrep UI Build Notes for Habit Loop System
+
+1. Daily Streak System
+- Add a top dashboard streak card with flame icon, current streak, longest streak, and streak freeze count.
+- Add a streak milestone strip with 3d, 7d, 14d, 30d markers.
+- Add a streak warning banner when the reminder message says the streak is at risk.
+- Add a streak freeze chip/button state only if you want manual consumption later.
+
+2. XP and Level System
+- Add an XP summary card near the hero section.
+- Show level number, level title, total XP, and XP needed for next level.
+- Add a horizontal animated XP bar with milestone labels.
+- Add a reward burst animation when XP changes.
+
+3. Daily Challenges
+- Show a dedicated "Daily Challenges" block on the dashboard.
+- Each challenge needs title, description, reward XP, progress count, and a progress bar.
+- Completed challenges should switch to a success state with confetti or glow animation.
+- Add a compact mobile version with stacked cards.
+
+4. Achievement Badges
+- Add a badge gallery with locked/unlocked states.
+- Show recently unlocked badges in a smaller "latest rewards" row.
+- Each badge card should support icon, badge name, unlocked date, and rarity styling.
+- Add a badge modal or drawer if you want richer history later.
+
+5. Leaderboards
+- Add tabs for weekly/global/class/friends UI even if only weekly/global are wired now.
+- Each row needs rank, username, XP, level, streak, and avatar placeholder.
+- Top 3 should have premium card treatment with gold/silver/bronze styling.
+- Add empty state for users with no XP recorded yet.
+
+6. Study Missions
+- Add a mission card with mission name, description, reward XP, optional badge reward, and a large progress bar.
+- Show mission status chips: active, completed.
+- Add a carousel or stacked timeline if multiple missions are shown later.
+
+7. Smart Reminders
+- Add a notification banner or compact callout near the top of the dashboard.
+- Show reminder urgency with subtle color changes.
+- Keep dismiss action optional; backend currently provides the message only.
+
+8. Reward Animations
+- Add confetti burst on challenge completion.
+- Add XP float-up numbers on event completion.
+- Add flame pulse on streak increase.
+- Add badge unlock modal animation.
+- Add subtle sound toggle in settings if you later wire sound effects.
+
+9. Progress Visualization
+- Add mastery progress cards with labels and animated progress bars.
+- Add circular completion rings for streak, mission, and level progress if desired.
+- Use clear percentages and completion counts, not only visuals.
+
+10. AI Encouragement
+- Add an encouragement callout card with AI icon and short supportive message.
+- Add a rotating message area on the dashboard hero if you want stronger habit reinforcement.
+- Keep this text short; it should feel like reinforcement, not a paragraph.
+
+11. Responsive Dashboard Adjustments
+- On mobile, order should be:
+  streak/xp summary
+  reminder
+  daily challenges
+  mission
+  leaderboard
+  achievements
+- On desktop, put challenges and mission left, leaderboard and badges right.
+
+12. Visual Style Guidance
+- Use glass cards with stronger accent borders on completed items.
+- Use flame/orange for streaks, cyan for XP, violet for achievements, amber for leaderboard.
+- Keep animations smooth and short. Avoid heavy motion on every rerender.
+
+13. Backend Hooks Already Added
+- Study session completion updates streak and XP.
+- Quiz submission updates XP and question counts.
+- Mock submission updates XP and question counts.
+- Game score submission updates XP.
+- Manual event endpoint exists for future lesson/flashcard UI hooks.
+
+14. Remaining UI Hooks You Need To Add Later
+- Lesson complete button should call gamification event: lesson_completed.
+- Flashcard review complete action should call gamification event: flashcards_reviewed.
+- Optional separate challenge-complete animation state after progress reaches target.
+
+15. New Features Added In This Release
+- Gamification profile storage
+- XP and level engine
+- Daily streak tracking with freeze support
+- Daily challenge generation
+- Study mission generation
+- Achievement auto unlocks
+- Weekly/global XP leaderboard API
+- Habit loop dashboard panel
+- AI encouragement/reminder messaging
+

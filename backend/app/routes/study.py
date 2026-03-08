@@ -2,10 +2,12 @@ from fastapi import APIRouter, Depends, Query
 
 from app.auth.dependencies import get_current_user
 from app.schemas.study import StudySessionCreate, StudySessionResponse, StudyStatsResponse
+from app.services.gamification_service import GamificationService
 from app.services.study_service import StudyService
 
 router = APIRouter(prefix='/study', tags=['Study Tracking'])
 study_service = StudyService()
+gamification_service = GamificationService()
 
 
 @router.post('/session', response_model=StudySessionResponse)
@@ -13,7 +15,20 @@ def create_study_session(
     payload: StudySessionCreate,
     current_user: dict = Depends(get_current_user),
 ) -> StudySessionResponse:
-    return StudySessionResponse(**study_service.create_session(current_user['id'], payload))
+    session = study_service.create_session(current_user['id'], payload)
+    if payload.session_type == 'study':
+        gamification_service.record_event(
+            current_user['id'],
+            current_user['username'],
+            'study_session_completed',
+            metadata={
+                'duration': payload.duration,
+                'session_type': payload.session_type,
+                'activity_date': str(payload.date),
+                'subject': payload.subject,
+            },
+        )
+    return StudySessionResponse(**session)
 
 
 @router.get('/history', response_model=list[StudySessionResponse])

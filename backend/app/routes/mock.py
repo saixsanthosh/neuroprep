@@ -2,10 +2,12 @@ from fastapi import APIRouter, Depends, Query
 
 from app.auth.dependencies import get_current_user
 from app.schemas.mock import MockResultResponse, MockStartRequest, MockStartResponse, MockSubmitRequest
+from app.services.gamification_service import GamificationService
 from app.services.mock_service import MockService
 
 router = APIRouter(prefix='/mock', tags=['Mock Tests'])
 mock_service = MockService()
+gamification_service = GamificationService()
 
 
 @router.post('/start', response_model=MockStartResponse)
@@ -16,7 +18,18 @@ def start_mock(payload: MockStartRequest, current_user: dict = Depends(get_curre
 
 @router.post('/submit', response_model=MockResultResponse)
 def submit_mock(payload: MockSubmitRequest, current_user: dict = Depends(get_current_user)) -> MockResultResponse:
-    return MockResultResponse(**mock_service.submit_mock(current_user['id'], payload))
+    result = mock_service.submit_mock(current_user['id'], payload)
+    gamification_service.record_event(
+        current_user['id'],
+        current_user['username'],
+        'mock_submitted',
+        metadata={
+            'subject': payload.exam_type,
+            'total_questions': payload.total_questions,
+            'accuracy': result['accuracy'],
+        },
+    )
+    return MockResultResponse(**result)
 
 
 @router.get('/results', response_model=list[MockResultResponse])

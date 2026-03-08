@@ -33,6 +33,11 @@ def list_demo_users() -> list[dict]:
     return [dict(user) for user in _demo_users.values()]
 
 
+def upsert_demo_user(row: dict) -> dict:
+    _demo_users[row['id']] = dict(row)
+    return dict(_demo_users[row['id']])
+
+
 def _get_client():
     from app.database.supabase_client import get_supabase_admin_client, get_supabase_public_client
 
@@ -168,10 +173,12 @@ class AuthService:
         return inserted.data[0]
 
     def _demo_register(self, payload: RegisterRequest) -> AuthResponse:
-        row = self._build_demo_user_row(
-            email=payload.email.lower(),
-            username=payload.username.lower(),
-            name=payload.name,
+        row = upsert_demo_user(
+            self._build_demo_user_row(
+                email=payload.email.lower(),
+                username=payload.username.lower(),
+                name=payload.name,
+            )
         )
         return self._issue_auth_response(row, 'Registration successful.')
 
@@ -187,18 +194,22 @@ class AuthService:
             username = identifier
             email = f'{identifier}@demo.neuroprep.app'
 
-        row = self._build_demo_user_row(
-            email=email,
-            username=username,
-            name=username.replace('_', ' ').title(),
+        row = upsert_demo_user(
+            self._build_demo_user_row(
+                email=email,
+                username=username,
+                name=username.replace('_', ' ').title(),
+            )
         )
         return self._issue_auth_response(row, 'Login successful')
 
     def _demo_google_auth(self) -> AuthResponse:
-        row = self._build_demo_user_row(
-            email='google.student@demo.neuroprep.app',
-            username='google_student',
-            name='Google Demo Student',
+        row = upsert_demo_user(
+            self._build_demo_user_row(
+                email='google.student@demo.neuroprep.app',
+                username='google_student',
+                name='Google Demo Student',
+            )
         )
         return self._issue_auth_response(row, 'Google login successful')
 
@@ -314,7 +325,7 @@ class AuthService:
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Username already in use')
 
         if self.demo_mode:
-            user_row = {**current_user, **updates}
+            user_row = upsert_demo_user({**current_user, **updates})
             return self._to_user_response(user_row)
 
         updated_response = self.db_client.table('users').update(updates).eq('id', current_user['id']).execute()

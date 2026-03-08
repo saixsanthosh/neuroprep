@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
+import { HabitLoopPanel } from '../components/dashboard/habit-loop-panel'
 import { PersonalizedStudyPanels } from '../components/dashboard/personalized-study-panels'
 import { useAuth } from '../contexts/auth-context'
 import { useLearningProfile } from '../contexts/learning-profile-context'
@@ -278,6 +279,10 @@ export function DashboardHomePage() {
 
       <motion.div variants={itemVariants}>
         <PersonalizedStudyPanels />
+      </motion.div>
+
+      <motion.div variants={itemVariants}>
+        <HabitLoopPanel />
       </motion.div>
 
       <motion.div variants={itemVariants} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

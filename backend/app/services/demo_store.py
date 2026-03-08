@@ -6,6 +6,11 @@ from app.services.helpers import utc_now_iso
 
 _demo_tables: dict[str, list[dict]] = {
     'learning_profiles': [],
+    'gamification_profiles': [],
+    'gamification_events': [],
+    'daily_challenges': [],
+    'study_missions': [],
+    'achievements': [],
     'study_sessions': [],
     'study_tasks': [],
     'quiz_results': [],

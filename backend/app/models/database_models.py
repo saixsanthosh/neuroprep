@@ -123,3 +123,52 @@ class GameScoreModel(BaseModel):
     game_name: str
     score: int
     created_at: datetime
+
+
+class GamificationProfileModel(BaseModel):
+    user_id: str
+    xp: int
+    level: int
+    level_title: str
+    current_streak: int
+    longest_streak: int
+    streak_freezes: int
+    last_activity_date: date | None = None
+    lessons_completed: int
+    flashcards_reviewed: int
+    quizzes_completed: int
+    mock_tests_completed: int
+    questions_solved: int
+    last_reward_message: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class DailyChallengeModel(BaseModel):
+    id: str
+    user_id: str
+    challenge_date: date
+    challenge_type: str
+    title: str
+    description: str
+    target_count: int
+    progress_count: int
+    reward_xp: int
+    reward_claimed: bool
+    completed_at: datetime | None = None
+    created_at: datetime
+
+
+class StudyMissionModel(BaseModel):
+    id: str
+    user_id: str
+    mission_type: str
+    title: str
+    description: str
+    target_count: int
+    progress_count: int
+    reward_xp: int
+    badge_name: str | None = None
+    status: str
+    created_at: datetime
+    completed_at: datetime | None = None

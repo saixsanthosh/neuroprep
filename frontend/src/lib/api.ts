@@ -147,6 +147,81 @@ export type LanguagePathResponse = {
   lessons: LanguageLesson[]
 }
 
+export type GamificationProfile = {
+  user_id: string
+  xp: number
+  level: number
+  level_title: string
+  xp_to_next_level: number
+  current_streak: number
+  longest_streak: number
+  streak_freezes: number
+  last_activity_date?: string | null
+  lessons_completed: number
+  flashcards_reviewed: number
+  quizzes_completed: number
+  mock_tests_completed: number
+  questions_solved: number
+  last_reward_message?: string | null
+}
+
+export type DailyChallenge = {
+  id: string
+  challenge_date: string
+  challenge_type: string
+  title: string
+  description: string
+  target_count: number
+  progress_count: number
+  reward_xp: number
+  reward_claimed: boolean
+  completed_at?: string | null
+}
+
+export type StudyMission = {
+  id: string
+  mission_type: string
+  title: string
+  description: string
+  target_count: number
+  progress_count: number
+  reward_xp: number
+  badge_name?: string | null
+  status: string
+  completed_at?: string | null
+}
+
+export type Achievement = {
+  id: string
+  badge_name: string
+  unlocked_at: string
+}
+
+export type HabitLeaderboardEntry = {
+  rank: number
+  user_id: string
+  username: string
+  xp: number
+  level: number
+  streak: number
+}
+
+export type MasteryTrack = {
+  label: string
+  progress: number
+}
+
+export type GamificationSummary = {
+  profile: GamificationProfile
+  reminder_message: string
+  encouragement_message: string
+  active_challenges: DailyChallenge[]
+  active_mission?: StudyMission | null
+  achievements: Achievement[]
+  leaderboard_preview: HabitLeaderboardEntry[]
+  mastery_tracks: MasteryTrack[]
+}
+
 export type AuthResponse = {
   user: User
   token: { access_token: string; token_type: string; expires_in: number }
@@ -276,6 +351,39 @@ export async function getLanguagePath(): Promise<LanguagePathResponse> {
 
 export async function getCompanionDailyBrief(): Promise<CompanionBriefResponse> {
   const { data } = await api.get<CompanionBriefResponse>('/companion/daily-brief')
+  return data
+}
+
+export async function getGamificationSummary(): Promise<GamificationSummary> {
+  const { data } = await api.get<GamificationSummary>('/gamification/summary')
+  return data
+}
+
+export async function getGamificationChallenges(): Promise<DailyChallenge[]> {
+  const { data } = await api.get<DailyChallenge[]>('/gamification/challenges')
+  return data
+}
+
+export async function getGamificationMissions(): Promise<StudyMission[]> {
+  const { data } = await api.get<StudyMission[]>('/gamification/missions')
+  return data
+}
+
+export async function getGamificationLeaderboard(scope: 'weekly' | 'global' = 'weekly'): Promise<HabitLeaderboardEntry[]> {
+  const { data } = await api.get<HabitLeaderboardEntry[]>('/gamification/leaderboard', {
+    params: { scope },
+  })
+  return data
+}
+
+export async function recordGamificationEvent(payload: {
+  event_type: string
+  count?: number
+  subject?: string
+  topic?: string
+  metadata?: Record<string, unknown>
+}): Promise<GamificationSummary> {
+  const { data } = await api.post<GamificationSummary>('/gamification/event', payload)
   return data
 }
 
