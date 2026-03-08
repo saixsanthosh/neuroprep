@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Request
 
 from app.auth.dependencies import get_current_user
+from app.core.config import get_settings
 from app.core.rate_limit import limiter
 from app.database.supabase_client import get_supabase_admin_client
 from app.schemas.ai import (
@@ -11,11 +12,12 @@ from app.schemas.ai import (
     GenerateQuizRequest,
     WeaknessAnalysisResponse,
 )
+from app.services.demo_store import upsert_weak_topic
 from app.services.ai_service import AIService
 
 router = APIRouter(prefix='/ai', tags=['AI Features'])
 ai_service = AIService()
-client = get_supabase_admin_client()
+settings = get_settings()
 
 
 @router.post('/chat', response_model=AIResponse)
@@ -80,13 +82,16 @@ def analyze_weakness(
         time_per_question=payload.time_per_question,
     )
 
-    client.table('weak_topics').insert(
-        {
-            'user_id': current_user['id'],
-            'subject': payload.subject,
-            'topic': payload.topic,
-            'weakness_score': analysis['weakness_score'],
-        }
-    ).execute()
+    record = {
+        'user_id': current_user['id'],
+        'subject': payload.subject,
+        'topic': payload.topic,
+        'weakness_score': analysis['weakness_score'],
+    }
+    if settings.DEMO_MODE:
+        upsert_weak_topic(record)
+    else:
+        client = get_supabase_admin_client()
+        client.table('weak_topics').insert(record).execute()
 
     return WeaknessAnalysisResponse(**analysis)

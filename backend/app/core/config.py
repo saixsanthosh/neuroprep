@@ -1,22 +1,27 @@
+import json
 from functools import lru_cache
+from pathlib import Path
 from typing import List
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+BASE_DIR = Path(__file__).resolve().parents[2]
+
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='ignore')
+    model_config = SettingsConfigDict(env_file=BASE_DIR / '.env', env_file_encoding='utf-8', extra='ignore')
 
     PROJECT_NAME: str = 'NeuroPrep API'
     API_V1_PREFIX: str = ''
     ENVIRONMENT: str = 'development'
+    DEMO_MODE: bool = False
 
-    SUPABASE_URL: str
-    SUPABASE_ANON_KEY: str
-    SUPABASE_SERVICE_ROLE_KEY: str
+    SUPABASE_URL: str = 'https://placeholder.supabase.co'
+    SUPABASE_ANON_KEY: str = 'placeholder'
+    SUPABASE_SERVICE_ROLE_KEY: str = 'placeholder'
 
-    JWT_SECRET_KEY: str
+    JWT_SECRET_KEY: str = 'neuroprep-demo-secret-change-in-production'
     JWT_ALGORITHM: str = 'HS256'
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
 
@@ -27,6 +32,14 @@ class Settings(BaseSettings):
     @classmethod
     def parse_origins(cls, value: str | list[str]) -> list[str]:
         if isinstance(value, str):
+            value = value.strip()
+            if value.startswith('['):
+                try:
+                    parsed = json.loads(value)
+                except json.JSONDecodeError:
+                    parsed = None
+                if isinstance(parsed, list):
+                    return [str(origin).strip() for origin in parsed if str(origin).strip()]
             return [origin.strip() for origin in value.split(',') if origin.strip()]
         return value
 

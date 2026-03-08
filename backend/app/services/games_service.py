@@ -1,12 +1,16 @@
 from collections import defaultdict
 
+from app.core.config import get_settings
 from app.database.supabase_client import get_supabase_admin_client
 from app.schemas.games import GameScoreCreate
+from app.services.auth_service import list_demo_users
+from app.services.demo_store import insert_row, list_rows
 
 
 class GamesService:
     def __init__(self):
-        self.client = get_supabase_admin_client()
+        self.demo_mode = get_settings().DEMO_MODE
+        self.client = None if self.demo_mode else get_supabase_admin_client()
 
     def submit_score(self, user_id: str, payload: GameScoreCreate) -> dict:
         row = {
@@ -14,23 +18,30 @@ class GamesService:
             'game_name': payload.game_name,
             'score': payload.score,
         }
+        if self.demo_mode:
+            return insert_row('game_scores', row, with_created_at=True)
         response = self.client.table('game_scores').insert(row).execute()
         return response.data[0]
 
     def leaderboard(self, limit: int = 20) -> list[dict]:
-        scores_response = (
-            self.client.table('game_scores')
-            .select('user_id, score')
-            .order('score', desc=True)
-            .limit(200)
-            .execute()
-        )
+        if self.demo_mode:
+            scores_rows = list_rows('game_scores', order_by='score', desc=True, limit=200)
+            username_map = {row['id']: row['username'] for row in list_demo_users()}
+        else:
+            scores_response = (
+                self.client.table('game_scores')
+                .select('user_id, score')
+                .order('score', desc=True)
+                .limit(200)
+                .execute()
+            )
 
-        users_response = self.client.table('users').select('id, username').execute()
-        username_map = {row['id']: row['username'] for row in (users_response.data or [])}
+            users_response = self.client.table('users').select('id, username').execute()
+            scores_rows = scores_response.data or []
+            username_map = {row['id']: row['username'] for row in (users_response.data or [])}
 
         best_scores = defaultdict(int)
-        for row in scores_response.data or []:
+        for row in scores_rows:
             user_id = row['user_id']
             score = int(row['score'])
             best_scores[user_id] = max(best_scores[user_id], score)

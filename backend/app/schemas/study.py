@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date as date_type
 from pydantic import BaseModel, Field
 
 
@@ -6,7 +6,7 @@ class StudySessionCreate(BaseModel):
     subject: str = Field(min_length=2, max_length=100)
     duration: int = Field(gt=0, le=720)
     session_type: str = Field(pattern='^(study|break)$')
-    date: date | None = None
+    date: date_type | None = None
 
 
 class StudySessionResponse(BaseModel):
@@ -15,7 +15,7 @@ class StudySessionResponse(BaseModel):
     subject: str
     duration: int
     session_type: str
-    date: date
+    date: date_type
 
 
 class StudyStatsResponse(BaseModel):

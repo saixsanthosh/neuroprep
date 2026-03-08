@@ -7,7 +7,6 @@ from fastapi import HTTPException, status
 
 from app.core.config import get_settings
 from app.core.security import create_access_token, hash_password, verify_password
-from app.database.supabase_client import get_supabase_admin_client
 from app.schemas.auth import (
     AuthResponse,
     GoogleAuthRequest,
@@ -19,11 +18,28 @@ from app.schemas.auth import (
 )
 from app.services.helpers import utc_now_iso
 
+# In-memory store for demo mode (no Supabase)
+_demo_users: dict[str, dict] = {}
+
+
+def get_demo_user(user_id: str) -> dict | None:
+    return _demo_users.get(user_id)
+
+
+def list_demo_users() -> list[dict]:
+    return [dict(user) for user in _demo_users.values()]
+
+
+def _get_client():
+    from app.database.supabase_client import get_supabase_admin_client
+    return get_supabase_admin_client()
+
 
 class AuthService:
     def __init__(self):
-        self.client = get_supabase_admin_client()
         self.settings = get_settings()
+        self.demo_mode = getattr(self.settings, 'DEMO_MODE', False)
+        self.client = None if self.demo_mode else _get_client()
 
     def _to_user_response(self, row: dict) -> UserResponse:
         return UserResponse(
@@ -37,9 +53,14 @@ class AuthService:
         )
 
     def _resolve_email(self, identifier: str) -> str:
+        if self.demo_mode:
+            ident_lower = identifier.lower()
+            for u in _demo_users.values():
+                if u.get('email', '').lower() == ident_lower or u.get('username', '').lower() == ident_lower:
+                    return u['email']
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid credentials')
         if '@' in identifier:
             return identifier.lower()
-
         lookup = (
             self.client.table('users')
             .select('email')
@@ -51,7 +72,66 @@ class AuthService:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid credentials')
         return lookup.data[0]['email']
 
+    def _demo_register(self, payload: RegisterRequest) -> AuthResponse:
+        email = payload.email.lower()
+        username = payload.username.lower()
+        for u in _demo_users.values():
+            if u.get('email') == email:
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Email already registered')
+            if u.get('username') == username:
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Username already in use')
+        user_id = str(uuid4())
+        now_iso = utc_now_iso()
+        row = {
+            'id': user_id,
+            'name': payload.name,
+            'email': email,
+            'username': username,
+            'role': payload.role,
+            'created_at': now_iso,
+            'last_login': now_iso,
+            'password_hash': hash_password(payload.password),
+        }
+        _demo_users[user_id] = row
+        access_token = create_access_token(
+            subject=user_id,
+            role=payload.role,
+            expires_delta=timedelta(minutes=self.settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+        )
+        return AuthResponse(
+            user=self._to_user_response(row),
+            token=TokenResponse(
+                access_token=access_token,
+                expires_in=self.settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            ),
+            message='Registration successful.',
+        )
+
+    def _demo_login(self, payload: LoginRequest) -> AuthResponse:
+        email = self._resolve_email(payload.identifier)
+        for u in _demo_users.values():
+            if u.get('email') == email:
+                if not verify_password(payload.password, u.get('password_hash')):
+                    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid credentials')
+                u['last_login'] = utc_now_iso()
+                access_token = create_access_token(
+                    subject=u['id'],
+                    role=u.get('role', 'student'),
+                    expires_delta=timedelta(minutes=self.settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+                )
+                return AuthResponse(
+                    user=self._to_user_response(u),
+                    token=TokenResponse(
+                        access_token=access_token,
+                        expires_in=self.settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+                    ),
+                    message='Login successful',
+                )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid credentials')
+
     def register(self, payload: RegisterRequest) -> AuthResponse:
+        if self.demo_mode:
+            return self._demo_register(payload)
         email = payload.email.lower()
         username = payload.username.lower()
 
@@ -108,6 +188,8 @@ class AuthService:
         )
 
     def login(self, payload: LoginRequest) -> AuthResponse:
+        if self.demo_mode:
+            return self._demo_login(payload)
         email = self._resolve_email(payload.identifier)
         user_response = self.client.table('users').select('*').eq('email', email).limit(1).execute()
         if not user_response.data:
@@ -143,6 +225,11 @@ class AuthService:
         )
 
     def google_auth(self, payload: GoogleAuthRequest) -> AuthResponse | OAuthResponse:
+        if self.demo_mode:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Google sign-in is disabled in demo mode. Use email or username to login.',
+            )
         if payload.id_token:
             try:
                 auth_response = self.client.auth.sign_in_with_id_token(

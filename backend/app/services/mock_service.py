@@ -1,12 +1,15 @@
 from uuid import uuid4
 
+from app.core.config import get_settings
 from app.database.supabase_client import get_supabase_admin_client
 from app.schemas.mock import MockStartRequest, MockSubmitRequest
+from app.services.demo_store import insert_row, list_rows
 
 
 class MockService:
     def __init__(self):
-        self.client = get_supabase_admin_client()
+        self.demo_mode = get_settings().DEMO_MODE
+        self.client = None if self.demo_mode else get_supabase_admin_client()
 
     def start_mock(self, payload: MockStartRequest) -> dict:
         return {
@@ -27,10 +30,20 @@ class MockService:
             'time_taken': payload.time_taken,
             'accuracy': accuracy,
         }
+        if self.demo_mode:
+            return insert_row('mock_test_results', row, with_created_at=True)
         response = self.client.table('mock_test_results').insert(row).execute()
         return response.data[0]
 
     def results(self, user_id: str, limit: int = 100) -> list[dict]:
+        if self.demo_mode:
+            return list_rows(
+                'mock_test_results',
+                predicate=lambda row: row['user_id'] == user_id,
+                order_by='created_at',
+                desc=True,
+                limit=limit,
+            )
         response = (
             self.client.table('mock_test_results')
             .select('*')
