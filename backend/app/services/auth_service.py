@@ -243,6 +243,17 @@ class AuthService:
         created_row = inserted.data[0] if inserted.data else user_row
         return self._issue_auth_response(created_row, 'Google login successful')
 
+    def _should_fallback_google(self, exc: Exception | str) -> bool:
+        message = str(exc).lower()
+        fallback_markers = (
+            'unsupported provider',
+            'provider is not enabled',
+            'google provider is not enabled',
+            'provider google is not enabled',
+            'oauth provider google is not enabled',
+        )
+        return any(marker in message for marker in fallback_markers)
+
     def register(self, payload: RegisterRequest) -> AuthResponse:
         if self.demo_mode:
             return self._demo_register(payload)
@@ -386,9 +397,6 @@ class AuthService:
         if self.demo_mode:
             return self._demo_google_auth()
 
-        if not self.settings.GOOGLE_OAUTH_ENABLED:
-            return self._fallback_google_auth()
-
         if payload.id_token:
             try:
                 auth_response = self.auth_client.auth.sign_in_with_id_token(
@@ -398,6 +406,8 @@ class AuthService:
                 if not auth_user:
                     raise ValueError('No user returned from Google auth')
             except Exception as exc:
+                if self._should_fallback_google(exc) or not self.settings.GOOGLE_OAUTH_ENABLED:
+                    return self._fallback_google_auth()
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f'Google auth failed: {exc}',
@@ -424,6 +434,8 @@ class AuthService:
                 oauth_data.get('url') if isinstance(oauth_data, dict) else None
             )
         except Exception as exc:
+            if self._should_fallback_google(exc) or not self.settings.GOOGLE_OAUTH_ENABLED:
+                return self._fallback_google_auth()
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f'Unable to generate Google OAuth URL: {exc}',
@@ -441,9 +453,6 @@ class AuthService:
         if self.demo_mode:
             return self._demo_google_auth()
 
-        if not self.settings.GOOGLE_OAUTH_ENABLED:
-            return self._fallback_google_auth()
-
         access_token = payload.access_token
         if payload.code:
             try:
@@ -456,6 +465,8 @@ class AuthService:
                 session = getattr(response, 'session', None)
                 access_token = getattr(session, 'access_token', None) or access_token
             except Exception as exc:
+                if self._should_fallback_google(exc) or not self.settings.GOOGLE_OAUTH_ENABLED:
+                    return self._fallback_google_auth()
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f'Unable to exchange Google auth code: {exc}',
@@ -471,6 +482,8 @@ class AuthService:
             auth_user_response = self.auth_client.auth.get_user(access_token)
             auth_user = getattr(auth_user_response, 'user', None) or auth_user_response
         except Exception as exc:
+            if self._should_fallback_google(exc) or not self.settings.GOOGLE_OAUTH_ENABLED:
+                return self._fallback_google_auth()
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f'Unable to fetch Google user session: {exc}',
