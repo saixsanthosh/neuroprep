@@ -14,11 +14,11 @@ class GamesService:
     def submit_score(self, user_id: str, username: str, payload: GameScoreCreate) -> dict:
         row = {
             'user_id': user_id,
-            'username': username,
             'game_name': payload.game_name,
             'score': payload.score,
         }
         if self.demo_mode:
+            row['username'] = username
             return insert_row('game_scores', row, with_created_at=True)
         response = self.client.table('game_scores').insert(row).execute()
         return response.data[0]
