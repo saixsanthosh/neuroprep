@@ -26,7 +26,12 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
 
     GEMINI_API_KEY: str | None = None
-    CORS_ORIGINS: List[str] = ['http://localhost:5173']
+    CORS_ORIGINS: List[str] = [
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        'http://localhost:4173',
+        'http://127.0.0.1:4173',
+    ]
 
     @field_validator('CORS_ORIGINS', mode='before')
     @classmethod

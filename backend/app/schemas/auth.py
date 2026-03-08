@@ -20,6 +20,24 @@ class LoginRequest(BaseModel):
 class GoogleAuthRequest(BaseModel):
     id_token: str | None = None
     redirect_to: str | None = None
+    role: Literal['student', 'teacher', 'admin'] | None = None
+
+
+class GoogleExchangeRequest(BaseModel):
+    code: str | None = None
+    access_token: str | None = None
+    redirect_to: str | None = None
+    role: Literal['student', 'teacher', 'admin'] | None = None
+
+
+class ProfileUpdateRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=120)
+    username: str | None = Field(default=None, min_length=3, max_length=50)
+
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+    redirect_to: str | None = None
 
 
 class UserResponse(BaseModel):
@@ -46,4 +64,8 @@ class AuthResponse(BaseModel):
 
 class OAuthResponse(BaseModel):
     oauth_url: str
+    message: str
+
+
+class MessageResponse(BaseModel):
     message: str

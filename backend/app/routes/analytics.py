@@ -1,7 +1,12 @@
 from fastapi import APIRouter, Depends
 
 from app.auth.dependencies import get_current_user
-from app.schemas.analytics import PerformanceResponse, StudyHoursResponse, WeakTopicResponse
+from app.schemas.analytics import (
+    PerformanceResponse,
+    StudyHoursResponse,
+    WeakTopicResponse,
+    WeeklyReportResponse,
+)
 from app.services.analytics_service import AnalyticsService
 
 router = APIRouter(prefix='/analytics', tags=['Analytics'])
@@ -22,3 +27,8 @@ def get_performance(current_user: dict = Depends(get_current_user)) -> Performan
 def get_weak_topics(current_user: dict = Depends(get_current_user)) -> list[WeakTopicResponse]:
     data = analytics_service.weak_topics(current_user['id'])
     return [WeakTopicResponse(**item) for item in data]
+
+
+@router.get('/weekly-report', response_model=WeeklyReportResponse)
+def get_weekly_report(current_user: dict = Depends(get_current_user)) -> WeeklyReportResponse:
+    return WeeklyReportResponse(**analytics_service.weekly_report(current_user['id']))

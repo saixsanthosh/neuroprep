@@ -41,6 +41,21 @@ export type AuthResponse = {
   message: string
 }
 
+export type OAuthResponse = {
+  oauth_url: string
+  message: string
+}
+
+export type MessageResponse = {
+  message: string
+}
+
+export type WeeklyReportResponse = {
+  summary: string
+  generated_at: string
+  focus_subjects: string[]
+}
+
 export async function login(identifier: string, password: string): Promise<AuthResponse> {
   const { data } = await api.post<AuthResponse>('/auth/login', { identifier, password })
   return data
@@ -54,5 +69,38 @@ export async function register(payload: {
   role?: 'student' | 'teacher' | 'admin'
 }): Promise<AuthResponse> {
   const { data } = await api.post<AuthResponse>('/auth/register', { ...payload, role: payload.role || 'student' })
+  return data
+}
+
+export async function startGoogleAuth(
+  redirect_to: string,
+  role?: 'student' | 'teacher' | 'admin',
+): Promise<AuthResponse | OAuthResponse> {
+  const { data } = await api.post<AuthResponse | OAuthResponse>('/auth/google', { redirect_to, role })
+  return data
+}
+
+export async function exchangeGoogleAuth(payload: {
+  code?: string
+  access_token?: string
+  redirect_to: string
+  role?: 'student' | 'teacher' | 'admin'
+}): Promise<AuthResponse> {
+  const { data } = await api.post<AuthResponse>('/auth/google/exchange', payload)
+  return data
+}
+
+export async function updateProfile(payload: { name?: string; username?: string }): Promise<User> {
+  const { data } = await api.put<User>('/auth/profile', payload)
+  return data
+}
+
+export async function requestPasswordReset(email: string, redirect_to: string): Promise<MessageResponse> {
+  const { data } = await api.post<MessageResponse>('/auth/password-reset', { email, redirect_to })
+  return data
+}
+
+export async function getWeeklyReport(): Promise<WeeklyReportResponse> {
+  const { data } = await api.get<WeeklyReportResponse>('/analytics/weekly-report')
   return data
 }

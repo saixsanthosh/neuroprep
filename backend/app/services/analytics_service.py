@@ -4,12 +4,15 @@ from datetime import date, timedelta
 from app.core.config import get_settings
 from app.database.supabase_client import get_supabase_admin_client
 from app.services.demo_store import list_rows
+from app.services.helpers import utc_now_iso
+from app.services.recommendation_service import RecommendationService
 
 
 class AnalyticsService:
     def __init__(self):
         self.demo_mode = get_settings().DEMO_MODE
         self.client = None if self.demo_mode else get_supabase_admin_client()
+        self.recommendations = RecommendationService()
 
     def study_hours(self, user_id: str) -> dict:
         if self.demo_mode:
@@ -132,3 +135,24 @@ class AnalyticsService:
         )
 
         return response.data or []
+
+    def weekly_report(self, user_id: str) -> dict:
+        weak_topics = self.weak_topics(user_id, limit=5)
+        focus_subjects = list(dict.fromkeys(item['subject'] for item in weak_topics))[:3]
+
+        if weak_topics:
+            summary = self.recommendations.weekly_report(weak_topics)
+        else:
+            study_hours = self.study_hours(user_id)
+            weekly_total = study_hours['weekly_total']
+            summary = (
+                'No critical weak topics are recorded yet. '
+                f'Keep your weekly study total near or above {max(10, int(weekly_total) or 10)} hours, '
+                'run one timed mock, and refresh formulas before the weekend.'
+            )
+
+        return {
+            'summary': summary,
+            'generated_at': utc_now_iso(),
+            'focus_subjects': focus_subjects,
+        }

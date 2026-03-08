@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { motion, type Variants } from 'framer-motion'
 import {
   ArrowRight,
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 
 import { useAuth } from '../contexts/auth-context'
+import { getWeeklyReport } from '../lib/api'
 import { StatCard } from '../components/dashboard/stat-card'
 import { Badge } from '../components/ui/badge'
 import { Card, CardDescription, CardTitle } from '../components/ui/card'
@@ -87,6 +88,30 @@ const itemVariants: Variants = {
 export function DashboardHomePage() {
   const { user } = useAuth()
   const displayName = user?.name ?? user?.username ?? 'Scholar'
+  const [weeklyReport, setWeeklyReport] = useState('Loading your weekly AI report...')
+  const [focusSubjects, setFocusSubjects] = useState<string[]>([])
+
+  useEffect(() => {
+    let active = true
+
+    const loadWeeklyReport = async () => {
+      try {
+        const report = await getWeeklyReport()
+        if (!active) return
+        setWeeklyReport(report.summary)
+        setFocusSubjects(report.focus_subjects)
+      } catch {
+        if (!active) return
+        setWeeklyReport('Weekly AI report is not available yet. Complete a quiz or mock to generate better guidance.')
+        setFocusSubjects([])
+      }
+    }
+
+    void loadWeeklyReport()
+    return () => {
+      active = false
+    }
+  }, [])
 
   return (
     <motion.div
@@ -163,6 +188,48 @@ export function DashboardHomePage() {
           </div>
         </div>
       </motion.section>
+
+      <motion.div variants={itemVariants}>
+        <Card className="glass-panel p-6">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <CardTitle className="text-xl text-white">AI Weekly Study Report</CardTitle>
+              <CardDescription className="mt-1 text-slate-400">
+                Auto-generated guidance based on your weak-topic and study-history signal.
+              </CardDescription>
+            </div>
+            <Badge className="gap-2 border-white/15 bg-white/10 text-white">
+              <Sparkles className="h-3.5 w-3.5 text-violet-300" />
+              New feature
+            </Badge>
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+            <div className="rounded-[1.6rem] border border-white/10 bg-white/5 p-5 text-sm leading-7 text-slate-300">
+              {weeklyReport}
+            </div>
+            <div className="rounded-[1.6rem] border border-white/10 bg-white/5 p-5">
+              <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Focus subjects</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {focusSubjects.length ? (
+                  focusSubjects.map((subject) => (
+                    <span
+                      key={subject}
+                      className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-medium text-cyan-200"
+                    >
+                      {subject}
+                    </span>
+                  ))
+                ) : (
+                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-400">
+                    No weak subjects detected yet
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </Card>
+      </motion.div>
 
       <motion.div variants={itemVariants} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Study Hours" value={6} suffix="h" icon={BookOpenCheck} delay={0.05} />

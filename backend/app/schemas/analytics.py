@@ -26,3 +26,9 @@ class WeakTopicResponse(BaseModel):
     subject: str
     topic: str
     weakness_score: float
+
+
+class WeeklyReportResponse(BaseModel):
+    summary: str
+    generated_at: str
+    focus_subjects: list[str]

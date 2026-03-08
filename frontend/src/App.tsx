@@ -4,6 +4,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { RequireAuth } from './components/auth/require-auth'
 import { Skeleton } from './components/ui/skeleton'
 import { DashboardLayout } from './pages/dashboard-layout'
+import { AuthCallbackPage } from './pages/auth-callback-page'
 import { LandingPage } from './pages/landing-page'
 import { LoginPage } from './pages/login-page'
 import { NeuroProject } from './pages/neuroproject'
@@ -47,6 +48,7 @@ function App() {
     <Suspense fallback={<RouteLoader />}>
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route path="/neuroproject" element={<NeuroProject />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />

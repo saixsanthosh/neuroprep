@@ -10,15 +10,18 @@ from app.core.security import create_access_token, hash_password, verify_passwor
 from app.schemas.auth import (
     AuthResponse,
     GoogleAuthRequest,
+    GoogleExchangeRequest,
     LoginRequest,
+    MessageResponse,
     OAuthResponse,
+    PasswordResetRequest,
+    ProfileUpdateRequest,
     RegisterRequest,
     TokenResponse,
     UserResponse,
 )
 from app.services.helpers import utc_now_iso
 
-# In-memory store for demo mode (no Supabase)
 _demo_users: dict[str, dict] = {}
 
 
@@ -32,6 +35,7 @@ def list_demo_users() -> list[dict]:
 
 def _get_client():
     from app.database.supabase_client import get_supabase_admin_client
+
     return get_supabase_admin_client()
 
 
@@ -52,15 +56,32 @@ class AuthService:
             last_login=row.get('last_login'),
         )
 
+    def _issue_auth_response(self, row: dict, message: str) -> AuthResponse:
+        access_token = create_access_token(
+            subject=row['id'],
+            role=row.get('role', 'student'),
+            expires_delta=timedelta(minutes=self.settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+        )
+        return AuthResponse(
+            user=self._to_user_response(row),
+            token=TokenResponse(
+                access_token=access_token,
+                expires_in=self.settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            ),
+            message=message,
+        )
+
     def _resolve_email(self, identifier: str) -> str:
         if self.demo_mode:
             ident_lower = identifier.lower()
-            for u in _demo_users.values():
-                if u.get('email', '').lower() == ident_lower or u.get('username', '').lower() == ident_lower:
-                    return u['email']
+            for user in _demo_users.values():
+                if user.get('email', '').lower() == ident_lower or user.get('username', '').lower() == ident_lower:
+                    return user['email']
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid credentials')
+
         if '@' in identifier:
             return identifier.lower()
+
         lookup = (
             self.client.table('users')
             .select('email')
@@ -72,14 +93,59 @@ class AuthService:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid credentials')
         return lookup.data[0]['email']
 
+    def _normalize_username(self, email: str, fallback: str = 'google_user') -> str:
+        raw = (email.split('@')[0] if email and '@' in email else fallback).strip().lower()
+        normalized = ''.join(char if char.isalnum() or char == '_' else '_' for char in raw).strip('_')
+        return normalized or fallback
+
+    def _build_google_user_row(self, auth_user: object, role: str = 'student') -> dict:
+        email = str(getattr(auth_user, 'email', '')).lower()
+        metadata = getattr(auth_user, 'user_metadata', {}) or {}
+        return {
+            'id': str(getattr(auth_user, 'id', uuid4())),
+            'name': metadata.get('full_name') or metadata.get('name') or 'Google User',
+            'email': email,
+            'username': self._normalize_username(email),
+            'role': role,
+            'created_at': utc_now_iso(),
+            'last_login': utc_now_iso(),
+            'password_hash': None,
+        }
+
+    def _resolve_google_user(self, auth_user: object, role: str = 'student') -> dict:
+        email = str(getattr(auth_user, 'email', '')).lower()
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Google authentication did not return an email address',
+            )
+
+        lookup = self.client.table('users').select('*').eq('email', email).limit(1).execute()
+        if lookup.data:
+            user_row = lookup.data[0]
+            now_iso = utc_now_iso()
+            self.client.table('users').update({'last_login': now_iso}).eq('id', user_row['id']).execute()
+            user_row['last_login'] = now_iso
+            return user_row
+
+        user_row = self._build_google_user_row(auth_user, role=role)
+        inserted = self.client.table('users').insert(user_row).execute()
+        if not inserted.data:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail='Failed to create Google user record',
+            )
+        return inserted.data[0]
+
     def _demo_register(self, payload: RegisterRequest) -> AuthResponse:
         email = payload.email.lower()
         username = payload.username.lower()
-        for u in _demo_users.values():
-            if u.get('email') == email:
+        for user in _demo_users.values():
+            if user.get('email') == email:
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Email already registered')
-            if u.get('username') == username:
+            if user.get('username') == username:
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Username already in use')
+
         user_id = str(uuid4())
         now_iso = utc_now_iso()
         row = {
@@ -93,45 +159,43 @@ class AuthService:
             'password_hash': hash_password(payload.password),
         }
         _demo_users[user_id] = row
-        access_token = create_access_token(
-            subject=user_id,
-            role=payload.role,
-            expires_delta=timedelta(minutes=self.settings.ACCESS_TOKEN_EXPIRE_MINUTES),
-        )
-        return AuthResponse(
-            user=self._to_user_response(row),
-            token=TokenResponse(
-                access_token=access_token,
-                expires_in=self.settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-            ),
-            message='Registration successful.',
-        )
+        return self._issue_auth_response(row, 'Registration successful.')
 
     def _demo_login(self, payload: LoginRequest) -> AuthResponse:
         email = self._resolve_email(payload.identifier)
-        for u in _demo_users.values():
-            if u.get('email') == email:
-                if not verify_password(payload.password, u.get('password_hash')):
+        for user in _demo_users.values():
+            if user.get('email') == email:
+                if not verify_password(payload.password, user.get('password_hash')):
                     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid credentials')
-                u['last_login'] = utc_now_iso()
-                access_token = create_access_token(
-                    subject=u['id'],
-                    role=u.get('role', 'student'),
-                    expires_delta=timedelta(minutes=self.settings.ACCESS_TOKEN_EXPIRE_MINUTES),
-                )
-                return AuthResponse(
-                    user=self._to_user_response(u),
-                    token=TokenResponse(
-                        access_token=access_token,
-                        expires_in=self.settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-                    ),
-                    message='Login successful',
-                )
+                user['last_login'] = utc_now_iso()
+                return self._issue_auth_response(user, 'Login successful')
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid credentials')
+
+    def _demo_google_auth(self, role: str = 'student') -> AuthResponse:
+        normalized_role = role if role in {'student', 'teacher', 'admin'} else 'student'
+        email = f'google.{normalized_role}@example.com'
+        existing = next((user for user in _demo_users.values() if user.get('email') == email), None)
+        if not existing:
+            now_iso = utc_now_iso()
+            existing = {
+                'id': str(uuid4()),
+                'name': f'Google Demo {normalized_role.title()}',
+                'email': email,
+                'username': f'google_{normalized_role}',
+                'role': normalized_role,
+                'created_at': now_iso,
+                'last_login': now_iso,
+                'password_hash': None,
+            }
+            _demo_users[existing['id']] = existing
+        else:
+            existing['last_login'] = utc_now_iso()
+        return self._issue_auth_response(existing, 'Google login successful')
 
     def register(self, payload: RegisterRequest) -> AuthResponse:
         if self.demo_mode:
             return self._demo_register(payload)
+
         email = payload.email.lower()
         username = payload.username.lower()
 
@@ -172,24 +236,15 @@ class AuthService:
         if not inserted.data:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Failed to create user')
 
-        access_token = create_access_token(
-            subject=auth_user_id,
-            role=payload.role,
-            expires_delta=timedelta(minutes=self.settings.ACCESS_TOKEN_EXPIRE_MINUTES),
-        )
-
-        return AuthResponse(
-            user=self._to_user_response(inserted.data[0]),
-            token=TokenResponse(
-                access_token=access_token,
-                expires_in=self.settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-            ),
-            message='Registration successful. Verify your email in Supabase Auth to activate full login.',
+        return self._issue_auth_response(
+            inserted.data[0],
+            'Registration successful. Verify your email in Supabase Auth to activate full login.',
         )
 
     def login(self, payload: LoginRequest) -> AuthResponse:
         if self.demo_mode:
             return self._demo_login(payload)
+
         email = self._resolve_email(payload.identifier)
         user_response = self.client.table('users').select('*').eq('email', email).limit(1).execute()
         if not user_response.data:
@@ -202,34 +257,88 @@ class AuthService:
         try:
             self.client.auth.sign_in_with_password({'email': email, 'password': payload.password})
         except Exception:
-            # Local hash verification already succeeded; keep API login resilient.
             pass
 
         now_iso = utc_now_iso()
         self.client.table('users').update({'last_login': now_iso}).eq('id', user_row['id']).execute()
         user_row['last_login'] = now_iso
 
-        access_token = create_access_token(
-            subject=user_row['id'],
-            role=user_row.get('role', 'student'),
-            expires_delta=timedelta(minutes=self.settings.ACCESS_TOKEN_EXPIRE_MINUTES),
-        )
+        return self._issue_auth_response(user_row, 'Login successful')
 
-        return AuthResponse(
-            user=self._to_user_response(user_row),
-            token=TokenResponse(
-                access_token=access_token,
-                expires_in=self.settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-            ),
-            message='Login successful',
-        )
+    def me(self, current_user: dict) -> UserResponse:
+        return self._to_user_response(current_user)
+
+    def update_profile(self, current_user: dict, payload: ProfileUpdateRequest) -> UserResponse:
+        updates: dict[str, str] = {}
+        if payload.name is not None:
+            updates['name'] = payload.name.strip()
+        if payload.username is not None:
+            updates['username'] = payload.username.strip().lower()
+
+        if not updates:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Provide at least one field to update',
+            )
+
+        if 'username' in updates:
+            next_username = updates['username']
+            if self.demo_mode:
+                duplicate = next(
+                    (
+                        user
+                        for user in _demo_users.values()
+                        if user['id'] != current_user['id'] and user.get('username') == next_username
+                    ),
+                    None,
+                )
+            else:
+                duplicate_response = (
+                    self.client.table('users').select('id').eq('username', next_username).limit(1).execute()
+                )
+                duplicate = (
+                    duplicate_response.data[0]
+                    if duplicate_response.data and duplicate_response.data[0]['id'] != current_user['id']
+                    else None
+                )
+            if duplicate:
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Username already in use')
+
+        if self.demo_mode:
+            user_row = _demo_users.get(current_user['id'])
+            if not user_row:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User not found')
+            user_row.update(updates)
+            return self._to_user_response(user_row)
+
+        updated_response = self.client.table('users').update(updates).eq('id', current_user['id']).execute()
+        user_row = updated_response.data[0] if updated_response.data else {**current_user, **updates}
+        return self._to_user_response(user_row)
+
+    def request_password_reset(self, payload: PasswordResetRequest) -> MessageResponse:
+        email = payload.email.lower()
+        if self.demo_mode:
+            return MessageResponse(
+                message=f'Password reset instructions have been generated for {email} in demo mode.'
+            )
+
+        try:
+            self.client.auth.reset_password_email(
+                email,
+                {'redirect_to': payload.redirect_to or 'http://127.0.0.1:5173/login'},
+            )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f'Unable to send password reset email: {exc}',
+            ) from exc
+
+        return MessageResponse(message=f'Password reset instructions sent to {email}.')
 
     def google_auth(self, payload: GoogleAuthRequest) -> AuthResponse | OAuthResponse:
         if self.demo_mode:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Google sign-in is disabled in demo mode. Use email or username to login.',
-            )
+            return self._demo_google_auth(payload.role or 'student')
+
         if payload.id_token:
             try:
                 auth_response = self.client.auth.sign_in_with_id_token(
@@ -244,51 +353,25 @@ class AuthService:
                     detail=f'Google auth failed: {exc}',
                 ) from exc
 
-            email = str(getattr(auth_user, 'email', '')).lower()
-            lookup = self.client.table('users').select('*').eq('email', email).limit(1).execute()
-            if lookup.data:
-                user_row = lookup.data[0]
-            else:
-                user_row = {
-                    'id': str(getattr(auth_user, 'id', uuid4())),
-                    'name': getattr(auth_user, 'user_metadata', {}).get('full_name', 'Google User'),
-                    'email': email,
-                    'username': email.split('@')[0],
-                    'role': 'student',
-                    'created_at': utc_now_iso(),
-                    'last_login': utc_now_iso(),
-                    'password_hash': None,
-                }
-                self.client.table('users').insert(user_row).execute()
+            user_row = self._resolve_google_user(auth_user, role=payload.role or 'student')
+            return self._issue_auth_response(user_row, 'Google login successful')
 
-            access_token = create_access_token(
-                subject=user_row['id'],
-                role=user_row.get('role', 'student'),
-                expires_delta=timedelta(minutes=self.settings.ACCESS_TOKEN_EXPIRE_MINUTES),
-            )
-
-            return AuthResponse(
-                user=self._to_user_response(user_row),
-                token=TokenResponse(
-                    access_token=access_token,
-                    expires_in=self.settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-                ),
-                message='Google login successful',
-            )
-
-        redirect_to = payload.redirect_to or 'http://localhost:5173/auth/callback'
+        redirect_to = payload.redirect_to or 'http://127.0.0.1:5173/auth/callback'
         try:
             oauth_response = self.client.auth.sign_in_with_oauth(
-                {'provider': 'google', 'options': {'redirect_to': redirect_to}}
+                {
+                    'provider': 'google',
+                    'options': {
+                        'redirect_to': redirect_to,
+                        'query_params': {'access_type': 'offline', 'prompt': 'consent'},
+                    },
+                }
             )
             oauth_data = (
-                oauth_response
-                if isinstance(oauth_response, dict)
-                else getattr(oauth_response, 'data', {})
+                oauth_response if isinstance(oauth_response, dict) else getattr(oauth_response, 'data', {})
             )
-            oauth_url = (
-                getattr(oauth_response, 'url', None)
-                or (oauth_data.get('url') if isinstance(oauth_data, dict) else None)
+            oauth_url = getattr(oauth_response, 'url', None) or (
+                oauth_data.get('url') if isinstance(oauth_data, dict) else None
             )
         except Exception as exc:
             raise HTTPException(
@@ -303,3 +386,42 @@ class AuthService:
             )
 
         return OAuthResponse(oauth_url=oauth_url, message='Open the URL to continue Google sign-in')
+
+    def google_exchange(self, payload: GoogleExchangeRequest) -> AuthResponse:
+        if self.demo_mode:
+            return self._demo_google_auth(payload.role or 'student')
+
+        access_token = payload.access_token
+        if payload.code:
+            try:
+                response = self.client.auth.exchange_code_for_session(
+                    {
+                        'auth_code': payload.code,
+                        'redirect_to': payload.redirect_to or 'http://127.0.0.1:5173/auth/callback',
+                    }
+                )
+                session = getattr(response, 'session', None)
+                access_token = getattr(session, 'access_token', None) or access_token
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f'Unable to exchange Google auth code: {exc}',
+                ) from exc
+
+        if not access_token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Google exchange requires either an auth code or access token',
+            )
+
+        try:
+            auth_user_response = self.client.auth.get_user(access_token)
+            auth_user = getattr(auth_user_response, 'user', None) or auth_user_response
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f'Unable to fetch Google user session: {exc}',
+            ) from exc
+
+        user_row = self._resolve_google_user(auth_user, role=payload.role or 'student')
+        return self._issue_auth_response(user_row, 'Google login successful')

@@ -56,6 +56,9 @@ class AIService:
         difficulty: str = 'medium',
         count: int = 5,
     ) -> list[str]:
+        if not self.model:
+            return [f'{subject} question {index + 1} on {topic} ({difficulty})' for index in range(count)]
+
         prompt = (
             f'Create {count} {difficulty} difficulty exam questions for {subject} on topic {topic}. '
             'Return each question on a new line, no answers.'

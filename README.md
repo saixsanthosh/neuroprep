@@ -56,23 +56,23 @@ Production-ready full-stack scaffold for a modern AI-powered study platform.
 ```text
 .
 +-- frontend/
-¦   +-- src/
-¦       +-- components/
-¦       +-- hooks/
-¦       +-- lib/
-¦       +-- pages/
+ï¿½   +-- src/
+ï¿½       +-- components/
+ï¿½       +-- hooks/
+ï¿½       +-- lib/
+ï¿½       +-- pages/
 +-- backend/
-¦   +-- app/
-¦   ¦   +-- auth/
-¦   ¦   +-- core/
-¦   ¦   +-- database/
-¦   ¦   +-- models/
-¦   ¦   +-- routes/
-¦   ¦   +-- schemas/
-¦   ¦   +-- services/
-¦   +-- database/
-¦   ¦   +-- migrations/
-¦   +-- docs/
+ï¿½   +-- app/
+ï¿½   ï¿½   +-- auth/
+ï¿½   ï¿½   +-- core/
+ï¿½   ï¿½   +-- database/
+ï¿½   ï¿½   +-- models/
+ï¿½   ï¿½   +-- routes/
+ï¿½   ï¿½   +-- schemas/
+ï¿½   ï¿½   +-- services/
+ï¿½   +-- database/
+ï¿½   ï¿½   +-- migrations/
+ï¿½   +-- docs/
 +-- docs/
 +-- shared/
     +-- types/
@@ -80,7 +80,30 @@ Production-ready full-stack scaffold for a modern AI-powered study platform.
 
 ## Local Setup
 
-## 1) Frontend
+The app uses **Supabase** for auth and database. Configure it once, then run frontend and backend.
+
+### 1) Supabase
+
+1. Create a project at [supabase.com](https://supabase.com).
+2. In the dashboard: **Settings ? API** ï¿½ copy **Project URL**, **anon (public) key**, and **service_role key**.
+3. In **SQL Editor**, run the migrations in order:
+   - `backend/database/migrations/001_initial_schema.sql`
+   - `backend/database/migrations/002_analytics_views.sql`
+4. In **Authentication ? Providers**, enable **Email** (and optionally **Google** for OAuth).
+
+### 2) Backend
+
+```bash
+cd backend
+cp .env.example .env
+# Edit .env: set SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, JWT_SECRET_KEY
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+Backend runs on `http://localhost:8000`. Keep `DEMO_MODE=false` (default) so auth and data use Supabase.
+
+### 3) Frontend
 
 ```bash
 cd frontend
@@ -88,19 +111,7 @@ npm install
 npm run dev
 ```
 
-Frontend runs on `http://localhost:5173`.
-
-## 2) Backend
-
-```bash
-cd backend
-cp .env.example .env
-# edit .env values
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-```
-
-Backend runs on `http://localhost:8000`.
+Frontend runs on `http://localhost:5173`. Use **Log in** / **Sign up**; auth goes through the backend to Supabase.
 
 - OpenAPI docs: `http://localhost:8000/docs`
 - ReDoc: `http://localhost:8000/redoc`

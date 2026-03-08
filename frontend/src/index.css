@@ -243,3 +243,73 @@ h6 {
     transform: translateX(120%);
   }
 }
+
+@keyframes rotate-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes scale-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes bounce-subtle {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes glow-expand {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(var(--glow), 0.3), 0 0 40px rgba(var(--glow), 0.1);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(var(--glow), 0.5), 0 0 80px rgba(var(--glow), 0.2);
+  }
+}
+
+@keyframes particle-float {
+  0%, 100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  33% {
+    transform: translate(10px, -10px) rotate(120deg);
+  }
+  66% {
+    transform: translate(-10px, 10px) rotate(240deg);
+  }
+}

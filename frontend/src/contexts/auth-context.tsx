@@ -8,7 +8,21 @@ type AuthContextValue = {
   token: string | null
   isLoading: boolean
   login: (identifier: string, password: string) => Promise<void>
-  register: (payload: { name: string; email: string; username: string; password: string }) => Promise<void>
+  register: (payload: {
+    name: string
+    email: string
+    username: string
+      password: string
+      role?: 'student' | 'teacher' | 'admin'
+  }) => Promise<void>
+  googleAuth: (role?: 'student' | 'teacher' | 'admin') => Promise<'authenticated' | 'redirected'>
+  completeGoogleAuth: (payload: {
+    code?: string
+    access_token?: string
+    redirect_to: string
+    role?: 'student' | 'teacher' | 'admin'
+  }) => Promise<void>
+  updateProfile: (payload: { name?: string; username?: string }) => Promise<void>
   logout: () => void
   isAuthenticated: boolean
 }
@@ -57,7 +71,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const register = useCallback(
-    async (payload: { name: string; email: string; username: string; password: string }) => {
+    async (payload: {
+      name: string
+      email: string
+      username: string
+      password: string
+      role?: 'student' | 'teacher' | 'admin'
+    }) => {
       setIsLoading(true)
       try {
         const res = await api.register(payload)
@@ -72,6 +92,70 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [],
   )
 
+  const googleAuth = useCallback(async (role?: 'student' | 'teacher' | 'admin') => {
+    setIsLoading(true)
+    try {
+      const redirect_to = `${window.location.origin}/auth/callback`
+      if (role) {
+        sessionStorage.setItem('neuroprep_pending_google_role', role)
+      } else {
+        sessionStorage.removeItem('neuroprep_pending_google_role')
+      }
+      const res = await api.startGoogleAuth(redirect_to, role)
+      if ('oauth_url' in res) {
+        window.location.href = res.oauth_url
+        return 'redirected' as const
+      }
+      localStorage.setItem(TOKEN_KEY, res.token.access_token)
+      localStorage.setItem(USER_KEY, JSON.stringify(res.user))
+      setToken(res.token.access_token)
+      setUser(res.user)
+      sessionStorage.removeItem('neuroprep_pending_google_role')
+      return 'authenticated' as const
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  const completeGoogleAuth = useCallback(
+    async (payload: {
+      code?: string
+      access_token?: string
+      redirect_to: string
+      role?: 'student' | 'teacher' | 'admin'
+    }) => {
+      setIsLoading(true)
+      try {
+        const storedRole = sessionStorage.getItem('neuroprep_pending_google_role')
+        const role =
+          payload.role ||
+          (storedRole === 'student' || storedRole === 'teacher' || storedRole === 'admin'
+            ? storedRole
+            : undefined)
+        const res = await api.exchangeGoogleAuth({ ...payload, role })
+        localStorage.setItem(TOKEN_KEY, res.token.access_token)
+        localStorage.setItem(USER_KEY, JSON.stringify(res.user))
+        setToken(res.token.access_token)
+        setUser(res.user)
+        sessionStorage.removeItem('neuroprep_pending_google_role')
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [],
+  )
+
+  const updateProfile = useCallback(async (payload: { name?: string; username?: string }) => {
+    setIsLoading(true)
+    try {
+      const nextUser = await api.updateProfile(payload)
+      localStorage.setItem(USER_KEY, JSON.stringify(nextUser))
+      setUser(nextUser)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -79,10 +163,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       login,
       register,
+      googleAuth,
+      completeGoogleAuth,
+      updateProfile,
       logout,
       isAuthenticated: !!token && !!user,
     }),
-    [user, token, isLoading, login, register, logout],
+    [user, token, isLoading, login, register, googleAuth, completeGoogleAuth, updateProfile, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
