@@ -10,6 +10,7 @@ import {
   Settings,
   Target,
   Timer,
+  Grid3x3,
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 
@@ -19,6 +20,7 @@ import { cn } from '../../lib/utils'
 
 const navItems = [
   { label: 'Dashboard', icon: LayoutDashboard, to: '/dashboard' },
+  { label: 'Modular View', icon: Grid3x3, to: '/dashboard/modular' },
   { label: 'AI Tutor', icon: Brain, to: '/dashboard/ai-tutor' },
   { label: 'Notes', icon: NotebookPen, to: '/dashboard/notes' },
   { label: 'Study Planner', icon: CalendarDays, to: '/dashboard/planner' },

@@ -16,6 +16,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { useAuth } from '../contexts/auth-context'
+import { resolvePostAuthRoute } from '../lib/post-auth'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { CardDescription, CardHeader, CardTitle } from '../components/ui/card'
@@ -77,7 +78,7 @@ export function RegisterPage() {
         username: username.trim(),
         password,
       })
-      navigate('/dashboard', { replace: true })
+      navigate(await resolvePostAuthRoute('/dashboard'), { replace: true })
     } catch (err: unknown) {
       const axiosError =
         err && typeof err === 'object' && 'response' in err
@@ -95,7 +96,7 @@ export function RegisterPage() {
     try {
       const result = await googleAuth()
       if (result === 'authenticated') {
-        navigate('/dashboard', { replace: true })
+        navigate(await resolvePostAuthRoute('/dashboard'), { replace: true })
       }
     } catch (err: unknown) {
       const axiosError =

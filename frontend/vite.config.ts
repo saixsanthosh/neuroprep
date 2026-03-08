@@ -14,14 +14,6 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
   },
-  resolve: {
-    preserveSymlinks: true,
-  },
-  optimizeDeps: {
-    noDiscovery: true,
-    include: [],
-    holdUntilCrawlEnd: false,
-  },
   server: {
     host: '127.0.0.1',
     port: 5173,

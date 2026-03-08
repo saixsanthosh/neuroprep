@@ -28,6 +28,7 @@ const LearningProfileContext = createContext<LearningProfileContextValue | null>
 
 export function LearningProfileProvider({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, user } = useAuth()
+  const userId = user?.id
   const [profile, setProfile] = useState<LearningProfile | null>(null)
   const [dashboard, setDashboard] = useState<LearningDashboardResponse | null>(null)
   const [onboardingOptions, setOnboardingOptions] = useState<OnboardingOptionsResponse | null>(null)
@@ -142,7 +143,7 @@ export function LearningProfileProvider({ children }: { children: React.ReactNod
   }, [loadOptions])
 
   useEffect(() => {
-    if (!isAuthenticated || !user) {
+    if (!isAuthenticated || !userId) {
       setProfile(null)
       setDashboard(null)
       setCompanionBrief(null)
@@ -153,7 +154,7 @@ export function LearningProfileProvider({ children }: { children: React.ReactNod
     }
 
     void refreshProfile()
-  }, [isAuthenticated, user?.id, refreshProfile, user])
+  }, [isAuthenticated, userId, refreshProfile])
 
   const value = useMemo<LearningProfileContextValue>(
     () => ({

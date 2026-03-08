@@ -16,11 +16,14 @@ import { HabitLoopPanel } from '../components/dashboard/habit-loop-panel'
 import { PersonalizedStudyPanels } from '../components/dashboard/personalized-study-panels'
 import { useAuth } from '../contexts/auth-context'
 import { useLearningProfile } from '../contexts/learning-profile-context'
-import { getWeeklyReport } from '../lib/api'
+import { getGamificationSummary, getWeeklyReport, type GamificationSummary } from '../lib/api'
 import { StatCard } from '../components/dashboard/stat-card'
 import { Badge } from '../components/ui/badge'
 import { Card, CardDescription, CardTitle } from '../components/ui/card'
 import { Skeleton } from '../components/ui/skeleton'
+import { ParticlesBackground } from '../components/ui/particles-background'
+import { FloatingShapes } from '../components/ui/floating-shapes'
+import { AnimatedGradientOrb } from '../components/ui/animated-gradient-orb'
 
 const WeeklyStudyHoursChart = lazy(() =>
   import('../components/charts/weekly-study-hours-chart').then((module) => ({
@@ -72,6 +75,7 @@ export function DashboardHomePage() {
   const displayName = user?.name ?? user?.username ?? 'Scholar'
   const [weeklyReport, setWeeklyReport] = useState('Loading your weekly AI report...')
   const [focusSubjects, setFocusSubjects] = useState<string[]>([])
+  const [gamification, setGamification] = useState<GamificationSummary | null>(null)
 
   const quickActions = (dashboard?.modules ?? []).slice(0, 3).map((module, index) => ({
     label: module.title,
@@ -149,13 +153,43 @@ export function DashboardHomePage() {
     }
   }, [])
 
+  useEffect(() => {
+    let active = true
+
+    const loadGamification = async () => {
+      try {
+        const data = await getGamificationSummary()
+        if (active) {
+          setGamification(data)
+        }
+      } catch {
+        if (active) {
+          setGamification(null)
+        }
+      }
+    }
+
+    void loadGamification()
+    return () => {
+      active = false
+    }
+  }, [])
+
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="show"
-      className="space-y-6 pb-8"
-    >
+    <div className="relative min-h-screen">
+      {/* Background Effects */}
+      <ParticlesBackground />
+      <FloatingShapes />
+      <AnimatedGradientOrb color="cyan" size="lg" top="10%" left="5%" />
+      <AnimatedGradientOrb color="purple" size="md" top="40%" right="8%" />
+      <AnimatedGradientOrb color="pink" size="sm" top="70%" left="15%" />
+
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+        className="relative z-10 space-y-6 pb-8"
+      >
       <motion.section
         variants={itemVariants}
         className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.16),transparent_28%),radial-gradient(circle_at_80%_15%,rgba(124,58,237,0.22),transparent_30%),linear-gradient(145deg,rgba(7,11,26,0.94),rgba(13,20,48,0.88))] p-6 shadow-[0_30px_80px_rgba(4,8,24,0.45)] sm:p-8"
@@ -287,7 +321,7 @@ export function DashboardHomePage() {
 
       <motion.div variants={itemVariants} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Study Hours" value={profile?.study_hours ?? 6} suffix="h" icon={BookOpenCheck} delay={0.05} />
-        <StatCard label="Study Streak" value={Math.max(1, Math.round((companionBrief?.readiness_score ?? 84) / 8))} suffix=" days" icon={Flame} delay={0.1} />
+        <StatCard label="Study Streak" value={gamification?.profile.current_streak ?? 0} suffix=" days" icon={Flame} delay={0.1} />
         <StatCard label="Productivity Score" value={companionBrief?.readiness_score ?? 87} suffix="%" icon={TimerReset} delay={0.15} />
         <StatCard label="Tasks Today" value={tasks.length} icon={ListTodo} delay={0.2} />
       </motion.div>
@@ -465,6 +499,8 @@ export function DashboardHomePage() {
           </div>
         </Card>
       </motion.div>
+
     </motion.div>
+    </div>
   )
 }

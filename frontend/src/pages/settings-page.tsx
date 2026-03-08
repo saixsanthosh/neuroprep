@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Loader2, LogOut, Mail, ShieldCheck, Sparkles, User } from 'lucide-react'
+import { Loader2, LogOut, Mail, ShieldCheck, Sparkles, User, Settings as SettingsIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -7,9 +7,15 @@ import { useAuth } from '../contexts/auth-context'
 import { useLearningProfile } from '../contexts/learning-profile-context'
 import { getWeeklyReport, requestPasswordReset } from '../lib/api'
 import { Button } from '../components/ui/button'
-import { Card, CardDescription, CardTitle } from '../components/ui/card'
+import { CardDescription, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { ThemeToggle } from '../components/ui/theme-toggle'
+import { ParticlesBackground } from '../components/ui/particles-background'
+import { FloatingShapes } from '../components/ui/floating-shapes'
+import { AnimatedGradientOrb } from '../components/ui/animated-gradient-orb'
+import { GlowingCard } from '../components/ui/glowing-card'
+
+const PROFILE_MESSAGE_KEY = 'neuroprep_profile_message'
 
 export function SettingsPage() {
   const { user, logout, updateProfile, isLoading } = useAuth()
@@ -30,6 +36,16 @@ export function SettingsPage() {
     setName(user?.name ?? '')
     setUsername(user?.username ?? '')
   }, [user?.name, user?.username])
+
+  useEffect(() => {
+    const persistedMessage = window.sessionStorage.getItem(PROFILE_MESSAGE_KEY)
+    if (!persistedMessage) {
+      return
+    }
+
+    setProfileMessage(persistedMessage)
+    window.sessionStorage.removeItem(PROFILE_MESSAGE_KEY)
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -77,7 +93,9 @@ export function SettingsPage() {
 
     try {
       await updateProfile({ name: name.trim(), username: username.trim() })
-      setProfileMessage('Profile updated successfully.')
+      const successMessage = 'Profile updated successfully.'
+      window.sessionStorage.setItem(PROFILE_MESSAGE_KEY, successMessage)
+      setProfileMessage(successMessage)
     } catch (err: unknown) {
       const apiError =
         err && typeof err === 'object' && 'response' in err
@@ -107,42 +125,66 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white sm:text-3xl">Settings</h1>
-        <p className="mt-1 text-slate-400">
-          Account controls, password recovery, theme state, and weekly AI planning.
-        </p>
-      </div>
+    <div className="relative min-h-screen">
+      {/* Background Effects */}
+      <ParticlesBackground />
+      <FloatingShapes />
+      <AnimatedGradientOrb color="cyan" size="lg" top="5%" right="10%" />
+      <AnimatedGradientOrb color="purple" size="md" top="50%" left="5%" />
+      <AnimatedGradientOrb color="pink" size="sm" bottom="10%" right="20%" />
 
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-        <Card className="p-6">
-          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <CardTitle className="text-white">Profile</CardTitle>
-              <CardDescription>Editable identity, password reset, and account state.</CardDescription>
-            </div>
-            <span className="premium-pill w-fit gap-2">
-              <ShieldCheck className="h-3.5 w-3.5 text-cyan-300" />
-              Secure session
-            </span>
+      <div className="relative z-10 space-y-6">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="flex items-center gap-3"
+        >
+          <div className="rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 p-3">
+            <SettingsIcon className="h-6 w-6 text-white" />
           </div>
+          <div>
+            <h1 className="text-gradient text-3xl font-black sm:text-4xl">Settings</h1>
+            <p className="mt-1 text-slate-300">
+              Account controls, password recovery, theme state, and weekly AI planning.
+            </p>
+          </div>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+          <GlowingCard glowColor="cyan">
+            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <CardTitle className="text-white">Profile</CardTitle>
+                <CardDescription>Editable identity, password reset, and account state.</CardDescription>
+              </div>
+              <span className="premium-pill w-fit gap-2">
+                <ShieldCheck className="h-3.5 w-3.5 text-cyan-300" />
+                Secure session
+              </span>
+            </div>
 
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="rounded-[1.6rem] border border-white/10 bg-white/5 p-5">
               <User className="h-5 w-5 text-slate-400" />
               <p className="mt-3 text-xs uppercase tracking-[0.18em] text-slate-500">Name</p>
-              <p className="mt-2 text-base font-semibold text-white">{user?.name ?? 'Not set'}</p>
+              <p className="mt-2 break-words text-base font-semibold leading-6 text-white">
+                {user?.name ?? 'Not set'}
+              </p>
             </div>
             <div className="rounded-[1.6rem] border border-white/10 bg-white/5 p-5">
               <Mail className="h-5 w-5 text-slate-400" />
               <p className="mt-3 text-xs uppercase tracking-[0.18em] text-slate-500">Email</p>
-              <p className="mt-2 text-base font-semibold text-white">{user?.email ?? 'Not set'}</p>
+              <p className="mt-2 break-all text-base font-semibold leading-6 text-white">
+                {user?.email ?? 'Not set'}
+              </p>
             </div>
             <div className="rounded-[1.6rem] border border-white/10 bg-white/5 p-5">
               <User className="h-5 w-5 text-slate-400" />
               <p className="mt-3 text-xs uppercase tracking-[0.18em] text-slate-500">Username</p>
-              <p className="mt-2 text-base font-semibold text-white">{user?.username ?? 'unknown'}</p>
+              <p className="mt-2 break-all text-base font-semibold leading-6 text-white">
+                {user?.username ?? 'unknown'}
+              </p>
             </div>
           </div>
 
@@ -207,19 +249,19 @@ export function SettingsPage() {
               Logout from this device
             </Button>
           </div>
-        </Card>
+        </GlowingCard>
       </motion.div>
 
       <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-        <Card className="p-6">
+        <GlowingCard glowColor="purple">
           <CardTitle className="text-white">Appearance</CardTitle>
           <CardDescription className="mb-4">
             Switch the visual mode without leaving the dashboard.
           </CardDescription>
           <ThemeToggle />
-        </Card>
+        </GlowingCard>
 
-        <Card className="p-6">
+        <GlowingCard glowColor="cyan">
           <CardTitle className="text-white">Preferences</CardTitle>
           <CardDescription className="mb-4">
             Notification and AI report controls with animated toggles.
@@ -251,10 +293,10 @@ export function SettingsPage() {
               </button>
             </label>
           </div>
-        </Card>
+        </GlowingCard>
       </div>
 
-      <Card className="p-6">
+      <GlowingCard glowColor="purple">
         <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
           <div>
             <CardTitle className="text-white">Learning Profile</CardTitle>
@@ -312,9 +354,9 @@ export function SettingsPage() {
             </div>
           </div>
         </div>
-      </Card>
+      </GlowingCard>
 
-      <Card className="p-6">
+      <GlowingCard glowColor="violet">
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <CardTitle className="text-white">Weekly AI Study Report</CardTitle>
@@ -360,9 +402,9 @@ export function SettingsPage() {
             </div>
           </div>
         )}
-      </Card>
+      </GlowingCard>
 
-      <Card className="p-6">
+      <GlowingCard glowColor="cyan">
         <CardTitle className="text-white">Data Export</CardTitle>
         <CardDescription className="mb-4">
           Backup study logs, notes, and analytics snapshots.
@@ -372,7 +414,8 @@ export function SettingsPage() {
           <Button variant="secondary">Export Notes</Button>
           <Button variant="secondary">Export Analytics</Button>
         </div>
-      </Card>
+      </GlowingCard>
+      </div>
     </div>
   )
 }

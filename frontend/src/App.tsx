@@ -36,6 +36,9 @@ const SettingsPage = lazy(() =>
 const OnboardingPage = lazy(() =>
   import('./pages/onboarding-page').then((module) => ({ default: module.OnboardingPage })),
 )
+const ModularDashboardPage = lazy(() =>
+  import('./pages/modular-dashboard-page').then((module) => ({ default: module.ModularDashboardPage })),
+)
 
 function RouteLoader() {
   return (
@@ -77,6 +80,7 @@ function App() {
           }
         >
           <Route index element={<DashboardHomePage />} />
+          <Route path="modular" element={<ModularDashboardPage />} />
           <Route path="ai-tutor" element={<AITutorPage />} />
           <Route path="notes" element={<NotesPage />} />
           <Route path="planner" element={<PlannerPage />} />

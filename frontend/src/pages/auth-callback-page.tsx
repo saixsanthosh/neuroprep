@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { useAuth } from '../contexts/auth-context'
+import { resolvePostAuthRoute } from '../lib/post-auth'
 
 export function AuthCallbackPage() {
   const navigate = useNavigate()
@@ -39,7 +40,7 @@ export function AuthCallbackPage() {
           access_token,
           redirect_to: `${window.location.origin}/auth/callback`,
         })
-        navigate('/dashboard', { replace: true })
+        navigate(await resolvePostAuthRoute('/dashboard'), { replace: true })
       } catch (err: unknown) {
         const apiError =
           err && typeof err === 'object' && 'response' in err

@@ -1,6 +1,11 @@
 import axios, { type AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios'
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+const localApiHost =
+  typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname)
+    ? window.location.hostname
+    : 'localhost'
+
+const baseURL = import.meta.env.VITE_API_BASE_URL || `http://${localApiHost}:8000`
 
 export const api = axios.create({
   baseURL,
@@ -222,6 +227,20 @@ export type GamificationSummary = {
   mastery_tracks: MasteryTrack[]
 }
 
+export type GameScoreResponse = {
+  id: string
+  user_id: string
+  game_name: string
+  score: number
+  created_at: string
+}
+
+export type GamesLeaderboardEntry = {
+  user_id: string
+  username: string
+  score: number
+}
+
 export type AuthResponse = {
   user: User
   token: { access_token: string; token_type: string; expires_in: number }
@@ -384,6 +403,18 @@ export async function recordGamificationEvent(payload: {
   metadata?: Record<string, unknown>
 }): Promise<GamificationSummary> {
   const { data } = await api.post<GamificationSummary>('/gamification/event', payload)
+  return data
+}
+
+export async function submitGameScore(payload: { game_name: string; score: number }): Promise<GameScoreResponse> {
+  const { data } = await api.post<GameScoreResponse>('/games/score', payload)
+  return data
+}
+
+export async function getGamesLeaderboard(limit = 20): Promise<GamesLeaderboardEntry[]> {
+  const { data } = await api.get<GamesLeaderboardEntry[]>('/games/leaderboard', {
+    params: { limit },
+  })
   return data
 }
 

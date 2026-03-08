@@ -17,6 +17,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import { useAuth } from '../contexts/auth-context'
 import { requestPasswordReset } from '../lib/api'
+import { resolvePostAuthRoute } from '../lib/post-auth'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { CardDescription, CardHeader, CardTitle } from '../components/ui/card'
@@ -73,7 +74,7 @@ export function LoginPage() {
 
     try {
       await login(identifier.trim(), password)
-      navigate(redirectTo, { replace: true })
+      navigate(await resolvePostAuthRoute(redirectTo), { replace: true })
     } catch (err: unknown) {
       const axiosError =
         err && typeof err === 'object' && 'response' in err
@@ -116,7 +117,7 @@ export function LoginPage() {
     try {
       const result = await googleAuth()
       if (result === 'authenticated') {
-        navigate(redirectTo, { replace: true })
+        navigate(await resolvePostAuthRoute(redirectTo), { replace: true })
       }
     } catch (err: unknown) {
       const axiosError =
@@ -225,25 +226,25 @@ export function LoginPage() {
               transition={{ delay: 0.5 }}
             >
               <GlowingCard className="p-4" glowColor="rgba(34, 211, 238, 0.3)">
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Momentum</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Workflows</p>
                 <p className="mt-3 text-3xl font-bold text-white">
-                  <AnimatedCounter value={12} suffix="d" />
+                  <AnimatedCounter value={12} />
                 </p>
-                <p className="mt-2 text-sm text-slate-400">Current active streak</p>
+                <p className="mt-2 text-sm text-slate-400">Core learning modules wired</p>
               </GlowingCard>
               <GlowingCard className="p-4" glowColor="rgba(124, 58, 237, 0.3)">
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Readiness</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Surfaces</p>
                 <p className="mt-3 text-3xl font-bold text-white">
-                  <AnimatedCounter value={92} suffix="%" />
+                  <AnimatedCounter value={6} />
                 </p>
-                <p className="mt-2 text-sm text-slate-400">Predicted exam readiness</p>
+                <p className="mt-2 text-sm text-slate-400">Primary pages redesigned</p>
               </GlowingCard>
               <GlowingCard className="p-4" glowColor="rgba(236, 72, 153, 0.3)">
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Sessions</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Signals</p>
                 <p className="mt-3 text-3xl font-bold text-white">
-                  <AnimatedCounter value={148} />
+                  <AnimatedCounter value={5} />
                 </p>
-                <p className="mt-2 text-sm text-slate-400">Tracked study blocks</p>
+                <p className="mt-2 text-sm text-slate-400">Auth and analytics paths live</p>
               </GlowingCard>
             </motion.div>
 
@@ -285,7 +286,7 @@ export function LoginPage() {
                 <p className="text-xs uppercase tracking-[0.2em] text-cyan-300">System Ready</p>
               </div>
               <p className="text-sm text-cyan-100">
-                All features are live on localhost. Login to access your personalized study dashboard.
+                Email and username login are ready. Google sign-in follows the configured provider flow.
               </p>
             </motion.div>
           </motion.section>
