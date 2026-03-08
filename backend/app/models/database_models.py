@@ -17,6 +17,25 @@ class UserModel(BaseModel):
     last_login: datetime | None = None
 
 
+class LearningProfileModel(BaseModel):
+    user_id: str
+    goal_type: str
+    exam_name: str | None = None
+    school_grade: int | None = None
+    degree_type: str | None = None
+    major_subject: str | None = None
+    subjects: list[str]
+    language: str | None = None
+    skill_track: str | None = None
+    skill_level: str | None = None
+    study_hours: float
+    onboarding_completed: bool = True
+    focus_modules: list[str]
+    preferences: dict
+    created_at: datetime
+    updated_at: datetime
+
+
 class StudySessionModel(BaseModel):
     id: str
     user_id: str

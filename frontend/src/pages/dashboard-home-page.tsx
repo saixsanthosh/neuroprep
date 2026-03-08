@@ -10,8 +10,11 @@ import {
   TimerReset,
   TrendingUp,
 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
+import { PersonalizedStudyPanels } from '../components/dashboard/personalized-study-panels'
 import { useAuth } from '../contexts/auth-context'
+import { useLearningProfile } from '../contexts/learning-profile-context'
 import { getWeeklyReport } from '../lib/api'
 import { StatCard } from '../components/dashboard/stat-card'
 import { Badge } from '../components/ui/badge'
@@ -39,31 +42,7 @@ const AccuracyTrendChart = lazy(() =>
   })),
 )
 
-const tasks = [
-  { title: 'Physics: Electromagnetism revision', due: '09:00 PM', done: false, lane: 'Deep Work' },
-  { title: 'Chemistry mock test analysis', due: '07:30 PM', done: true, lane: 'Review' },
-  { title: 'Math practice: Integration set', due: '10:30 PM', done: false, lane: 'Practice' },
-]
-
-const recentActivity = [
-  'Completed 25-minute focus sprint for Calculus and updated the study log.',
-  'Generated AI notes for Organic Chemistry with formula extraction enabled.',
-  'Closed two planner tasks and increased streak protection to 12 days.',
-  'Beat your previous Quiz Battle score and moved into the top 5 leaderboard.',
-]
-
-const subjects = [
-  { name: 'Physics', progress: 82, tone: 'from-cyan-400 to-sky-500' },
-  { name: 'Chemistry', progress: 75, tone: 'from-violet-500 to-fuchsia-500' },
-  { name: 'Mathematics', progress: 90, tone: 'from-emerald-400 to-teal-500' },
-  { name: 'Biology', progress: 68, tone: 'from-amber-400 to-orange-500' },
-]
-
-const quickActions = [
-  { label: 'Generate revision notes', icon: Sparkles },
-  { label: 'Start a timed mock', icon: TrendingUp },
-  { label: 'Ask the AI tutor', icon: Brain },
-]
+const quickActionIcons = [Sparkles, TrendingUp, Brain]
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -86,10 +65,66 @@ const itemVariants: Variants = {
 }
 
 export function DashboardHomePage() {
+  const navigate = useNavigate()
   const { user } = useAuth()
+  const { profile, dashboard, companionBrief } = useLearningProfile()
   const displayName = user?.name ?? user?.username ?? 'Scholar'
   const [weeklyReport, setWeeklyReport] = useState('Loading your weekly AI report...')
   const [focusSubjects, setFocusSubjects] = useState<string[]>([])
+
+  const quickActions = (dashboard?.modules ?? []).slice(0, 3).map((module, index) => ({
+    label: module.title,
+    route: module.route,
+    icon: quickActionIcons[index] ?? Sparkles,
+  }))
+
+  const tasks = companionBrief?.daily_brief?.length
+    ? companionBrief.daily_brief.slice(0, 4).map((item, index) => ({
+        title: item,
+        due: index === 0 ? 'Priority now' : index === 1 ? 'Next block' : index === 2 ? 'After practice' : 'Today',
+        done: false,
+        lane: index === 0 ? 'Priority' : index === 1 ? 'Practice' : index === 2 ? 'Revision' : 'Focus',
+      }))
+    : [
+        {
+          title: 'Complete onboarding to unlock your personalized study brief.',
+          due: 'Setup',
+          done: false,
+          lane: 'Setup',
+        },
+      ]
+
+  const recentActivity = (() => {
+    const suggestions = companionBrief?.smart_suggestions ?? []
+    const revisions = companionBrief?.revision_alerts ?? []
+    const merged = [...suggestions, ...revisions].slice(0, 4)
+    return merged.length
+      ? merged
+      : [
+          'Complete a quiz or mock test so the AI companion can detect your current pattern.',
+          'Use the planner to generate a goal-specific roadmap from your onboarding profile.',
+        ]
+  })()
+
+  const subjects = companionBrief?.skill_progress_map?.length
+    ? companionBrief.skill_progress_map.map((item, index) => ({
+        name: item.label,
+        progress: item.mastery,
+        tone:
+          index % 4 === 0
+            ? 'from-cyan-400 to-sky-500'
+            : index % 4 === 1
+              ? 'from-violet-500 to-fuchsia-500'
+              : index % 4 === 2
+                ? 'from-emerald-400 to-teal-500'
+                : 'from-amber-400 to-orange-500',
+      }))
+    : [
+        { name: 'Core mastery', progress: 82, tone: 'from-cyan-400 to-sky-500' },
+        { name: 'Revision memory', progress: 75, tone: 'from-violet-500 to-fuchsia-500' },
+        { name: 'Practice depth', progress: 90, tone: 'from-emerald-400 to-teal-500' },
+        { name: 'Recovery speed', progress: 68, tone: 'from-amber-400 to-orange-500' },
+      ]
 
   useEffect(() => {
     let active = true
@@ -135,28 +170,34 @@ export function DashboardHomePage() {
             <div className="flex flex-wrap items-center gap-3">
               <Badge className="gap-2 border-white/15 bg-white/10 text-white">
                 <Sparkles className="h-3.5 w-3.5 text-cyan-300" />
-                Premium command center
+                AI study companion
               </Badge>
               <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-300">
-                Live streak protection active
+                {profile ? profile.goal_type.replaceAll('_', ' ') : 'personalized mode'} active
               </span>
             </div>
 
             <div className="max-w-2xl">
               <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl xl:text-5xl">
-                Welcome back, <span className="text-gradient">{displayName}</span>
+                {dashboard?.hero_title ?? (
+                  <>
+                    Welcome back, <span className="text-gradient">{displayName}</span>
+                  </>
+                )}
               </h1>
-              <p className="mt-3 max-w-xl text-sm leading-7 text-slate-300 sm:text-base">
-                Your dashboard is set up like a study cockpit: quick actions, performance telemetry,
-                revision lanes, and AI-assisted momentum tracking in one place.
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
+                {companionBrief?.mentor_message ??
+                  dashboard?.hero_subtitle ??
+                  'Your dashboard is set up like a study cockpit: quick actions, performance telemetry, revision lanes, and AI-assisted momentum tracking in one place.'}
               </p>
             </div>
 
             <div className="flex flex-wrap gap-3">
-              {quickActions.map(({ label, icon: Icon }) => (
+              {quickActions.map(({ label, icon: Icon, route }) => (
                 <button
                   key={label}
                   type="button"
+                  onClick={() => navigate(route)}
                   className="group inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-slate-100 transition-all duration-300 hover:-translate-y-1 hover:border-cyan-300/35 hover:bg-white/10"
                 >
                   <span className="rounded-xl bg-white/10 p-2 text-cyan-300 transition-transform duration-300 group-hover:rotate-6">
@@ -172,18 +213,22 @@ export function DashboardHomePage() {
           <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-1">
             <div className="rounded-[1.5rem] border border-white/10 bg-black/20 p-5 backdrop-blur-2xl">
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Focus lane</p>
-              <p className="mt-3 text-3xl font-bold text-white">3h 45m</p>
-              <p className="mt-2 text-sm text-slate-400">Targeted revision block ready for Physics and Math.</p>
+              <p className="mt-3 text-3xl font-bold text-white">{dashboard?.focus_tracks?.[0] ?? 'Deep work'}</p>
+              <p className="mt-2 text-sm text-slate-400">{companionBrief?.next_focus ?? 'Targeted revision block is being prepared from your profile.'}</p>
             </div>
             <div className="rounded-[1.5rem] border border-white/10 bg-black/20 p-5 backdrop-blur-2xl">
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400">AI signal</p>
-              <p className="mt-3 text-3xl font-bold text-white">92%</p>
-              <p className="mt-2 text-sm text-slate-400">Readiness prediction indicates strong mock performance today.</p>
+              <p className="mt-3 text-3xl font-bold text-white">{companionBrief?.readiness_score ?? 92}%</p>
+              <p className="mt-2 text-sm text-slate-400">{companionBrief?.strategy_tip ?? 'Readiness prediction indicates strong mock performance today.'}</p>
             </div>
             <div className="rounded-[1.5rem] border border-white/10 bg-black/20 p-5 backdrop-blur-2xl">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Revision heat</p>
-              <p className="mt-3 text-3xl font-bold text-white">7 topics</p>
-              <p className="mt-2 text-sm text-slate-400">Weak-topic queue auto-ranked by urgency and exam impact.</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Voice stack</p>
+              <p className="mt-3 text-3xl font-bold text-white">{companionBrief?.voice_tools.whisper ? 'Live' : 'Pending'}</p>
+              <p className="mt-2 text-sm text-slate-400">
+                {profile?.goal_type === 'language_learning'
+                  ? 'Speaking practice and listening workflows are staged for your language path.'
+                  : 'Voice tutor hooks are ready for concept explanations and study podcasts.'}
+              </p>
             </div>
           </div>
         </div>
@@ -231,11 +276,15 @@ export function DashboardHomePage() {
         </Card>
       </motion.div>
 
+      <motion.div variants={itemVariants}>
+        <PersonalizedStudyPanels />
+      </motion.div>
+
       <motion.div variants={itemVariants} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Study Hours" value={6} suffix="h" icon={BookOpenCheck} delay={0.05} />
-        <StatCard label="Study Streak" value={12} suffix=" days" icon={Flame} delay={0.1} />
-        <StatCard label="Productivity Score" value={87} suffix="%" icon={TimerReset} delay={0.15} />
-        <StatCard label="Tasks Today" value={5} icon={ListTodo} delay={0.2} />
+        <StatCard label="Study Hours" value={profile?.study_hours ?? 6} suffix="h" icon={BookOpenCheck} delay={0.05} />
+        <StatCard label="Study Streak" value={Math.max(1, Math.round((companionBrief?.readiness_score ?? 84) / 8))} suffix=" days" icon={Flame} delay={0.1} />
+        <StatCard label="Productivity Score" value={companionBrief?.readiness_score ?? 87} suffix="%" icon={TimerReset} delay={0.15} />
+        <StatCard label="Tasks Today" value={tasks.length} icon={ListTodo} delay={0.2} />
       </motion.div>
 
       <div className="grid gap-4 xl:grid-cols-[1.45fr_0.95fr]">
@@ -339,9 +388,9 @@ export function DashboardHomePage() {
       <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
         <motion.div variants={itemVariants}>
           <Card className="glass-panel h-full p-6">
-            <CardTitle className="text-xl text-white">Recent Activity</CardTitle>
+            <CardTitle className="text-xl text-white">Recent AI Signals</CardTitle>
             <CardDescription className="mt-1 text-slate-400">
-              Latest platform events and study-system updates.
+              Smart suggestions, revision alerts, and next-step recommendations.
             </CardDescription>
             <div className="mt-5 space-y-3">
               {recentActivity.map((activity, index) => (
@@ -377,9 +426,9 @@ export function DashboardHomePage() {
 
       <motion.div variants={itemVariants}>
         <Card className="glass-panel p-6 sm:p-8">
-          <CardTitle className="text-2xl text-white">Subject Progress</CardTitle>
+          <CardTitle className="text-2xl text-white">Skill Progress Map</CardTitle>
           <CardDescription className="mt-1 text-base text-slate-400">
-            Revision completion bars with richer visual feedback.
+            AI-estimated mastery across your active learning tracks.
           </CardDescription>
           <div className="mt-8 grid gap-5 sm:grid-cols-2">
             {subjects.map((subject, index) => (

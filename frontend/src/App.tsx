@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 import { RequireAuth } from './components/auth/require-auth'
+import { RequireLearningProfile } from './components/auth/require-learning-profile'
 import { Skeleton } from './components/ui/skeleton'
 import { DashboardLayout } from './pages/dashboard-layout'
 import { AuthCallbackPage } from './pages/auth-callback-page'
@@ -32,6 +33,9 @@ const TimerPage = lazy(() => import('./pages/timer-page').then((module) => ({ de
 const SettingsPage = lazy(() =>
   import('./pages/settings-page').then((module) => ({ default: module.SettingsPage })),
 )
+const OnboardingPage = lazy(() =>
+  import('./pages/onboarding-page').then((module) => ({ default: module.OnboardingPage })),
+)
 
 function RouteLoader() {
   return (
@@ -53,12 +57,22 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/home" element={<Navigate to="/" replace />} />
+        <Route
+          path="/onboarding"
+          element={
+            <RequireAuth>
+              <OnboardingPage />
+            </RequireAuth>
+          }
+        />
 
         <Route
           path="/dashboard"
           element={
             <RequireAuth>
-              <DashboardLayout />
+              <RequireLearningProfile>
+                <DashboardLayout />
+              </RequireLearningProfile>
             </RequireAuth>
           }
         >

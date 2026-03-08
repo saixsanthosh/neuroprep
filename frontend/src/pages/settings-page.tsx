@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { useAuth } from '../contexts/auth-context'
+import { useLearningProfile } from '../contexts/learning-profile-context'
 import { getWeeklyReport, requestPasswordReset } from '../lib/api'
 import { Button } from '../components/ui/button'
 import { Card, CardDescription, CardTitle } from '../components/ui/card'
@@ -12,6 +13,7 @@ import { ThemeToggle } from '../components/ui/theme-toggle'
 
 export function SettingsPage() {
   const { user, logout, updateProfile, isLoading } = useAuth()
+  const { profile, dashboard, companionBrief } = useLearningProfile()
   const navigate = useNavigate()
   const [notifications, setNotifications] = useState(true)
   const [weeklyReport, setWeeklyReport] = useState(true)
@@ -251,6 +253,66 @@ export function SettingsPage() {
           </div>
         </Card>
       </div>
+
+      <Card className="p-6">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <CardTitle className="text-white">Learning Profile</CardTitle>
+            <CardDescription className="mt-1">
+              Current onboarding state, personalized dashboard mode, and voice-tool readiness.
+            </CardDescription>
+          </div>
+          <Button variant="secondary" onClick={() => navigate('/onboarding')}>
+            Retake onboarding
+          </Button>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="rounded-[1.6rem] border border-white/10 bg-white/5 p-5">
+            <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Active mode</p>
+            <p className="mt-3 text-base font-semibold text-white">
+              {profile ? profile.goal_type.replaceAll('_', ' ') : 'Not configured'}
+            </p>
+            <p className="mt-2 text-sm text-slate-400">{dashboard?.hero_title ?? 'Complete onboarding to personalize the workspace.'}</p>
+          </div>
+          <div className="rounded-[1.6rem] border border-white/10 bg-white/5 p-5">
+            <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Primary focus</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(dashboard?.focus_tracks ?? []).length ? (
+                dashboard?.focus_tracks.map((track) => (
+                  <span
+                    key={track}
+                    className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-medium text-cyan-200"
+                  >
+                    {track}
+                  </span>
+                ))
+              ) : (
+                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-400">
+                  No focus tracks yet
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="rounded-[1.6rem] border border-white/10 bg-white/5 p-5">
+            <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Voice and language stack</p>
+            <div className="mt-3 space-y-2 text-sm text-slate-300">
+              {Object.entries(companionBrief?.voice_tools ?? {}).length ? (
+                Object.entries(companionBrief?.voice_tools ?? {}).map(([tool, enabled]) => (
+                  <div key={tool} className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
+                    <span>{tool.replaceAll('_', ' ')}</span>
+                    <span className={enabled ? 'text-emerald-300' : 'text-amber-200'}>
+                      {enabled ? 'Ready' : 'Pending'}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-slate-400">No voice tools configured yet.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </Card>
 
       <Card className="p-6">
         <div className="mb-4 flex items-start justify-between gap-4">

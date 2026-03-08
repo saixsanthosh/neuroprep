@@ -5,6 +5,7 @@ from uuid import uuid4
 from app.services.helpers import utc_now_iso
 
 _demo_tables: dict[str, list[dict]] = {
+    'learning_profiles': [],
     'study_sessions': [],
     'study_tasks': [],
     'quiz_results': [],

@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
 
     GEMINI_API_KEY: str | None = None
+    TAVILY_API_KEY: str | None = None
+    LIBRETRANSLATE_URL: str | None = 'https://libretranslate.de'
+    WHISPER_MODEL: str | None = 'base'
+    COQUI_TTS_MODEL: str | None = 'tts_models/en/ljspeech/tacotron2-DDC'
+    TESSERACT_CMD: str | None = None
+    OPEN_RESOURCE_MAX_RESULTS: int = 8
     CORS_ORIGINS: Annotated[List[str], NoDecode] = [
         'http://localhost:5173',
         'http://127.0.0.1:5173',

@@ -34,6 +34,119 @@ export type User = {
   last_login?: string
 }
 
+export type GoalType =
+  | 'school_learning'
+  | 'college_courses'
+  | 'competitive_exams'
+  | 'language_learning'
+  | 'skill_learning'
+  | 'general_knowledge'
+
+export type LearningProfile = {
+  user_id: string
+  goal_type: GoalType
+  exam_name?: string | null
+  school_grade?: number | null
+  degree_type?: string | null
+  major_subject?: string | null
+  subjects: string[]
+  language?: string | null
+  skill_track?: string | null
+  skill_level?: 'beginner' | 'intermediate' | 'advanced' | null
+  study_hours: number
+  onboarding_completed: boolean
+  focus_modules: string[]
+  preferences: Record<string, unknown>
+  created_at?: string
+  updated_at?: string
+}
+
+export type OnboardingOption = {
+  value: string
+  label: string
+  description: string
+}
+
+export type OnboardingOptionsResponse = {
+  goals: OnboardingOption[]
+  competitive_exams: string[]
+  school_subjects: string[]
+  college_majors: string[]
+  skill_tracks: string[]
+  languages: string[]
+  skill_levels: string[]
+}
+
+export type DashboardModule = {
+  id: string
+  title: string
+  description: string
+  route: string
+  accent: string
+  category: string
+}
+
+export type LearningDashboardResponse = {
+  profile: LearningProfile
+  hero_title: string
+  hero_subtitle: string
+  focus_tracks: string[]
+  modules: DashboardModule[]
+}
+
+export type LearningResource = {
+  source: string
+  title: string
+  description: string
+  url: string
+  category: string
+}
+
+export type LearningResourcesResult = {
+  query: string
+  source_strategy: string
+  resources: LearningResource[]
+  generated_notes?: string | null
+}
+
+export type CompanionSkillNode = {
+  label: string
+  mastery: number
+  momentum: string
+}
+
+export type CompanionBriefResponse = {
+  greeting: string
+  mentor_message: string
+  strategy_tip: string
+  mistake_pattern: string
+  readiness_score: number
+  motivation_message: string
+  next_focus: string
+  daily_brief: string[]
+  smart_suggestions: string[]
+  revision_alerts: string[]
+  roadmap: string[]
+  skill_progress_map: CompanionSkillNode[]
+  voice_tools: Record<string, boolean>
+}
+
+export type LanguageLesson = {
+  id: string
+  lesson_type: string
+  title: string
+  description: string
+  duration_minutes: number
+  difficulty: string
+}
+
+export type LanguagePathResponse = {
+  language: string
+  skill_level: string
+  speech_stack: Record<string, boolean>
+  lessons: LanguageLesson[]
+}
+
 export type AuthResponse = {
   user: User
   token: { access_token: string; token_type: string; expires_in: number }
@@ -114,6 +227,55 @@ export async function exchangeGoogleAuth(payload: {
 
 export async function updateProfile(payload: { name?: string; username?: string }): Promise<User> {
   const { data } = await api.put<User>('/auth/profile', payload)
+  return data
+}
+
+export async function getOnboardingOptions(): Promise<OnboardingOptionsResponse> {
+  const { data } = await api.get<OnboardingOptionsResponse>('/learning/options')
+  return data
+}
+
+export async function getLearningProfile(): Promise<LearningProfile> {
+  const { data } = await api.get<LearningProfile>('/learning/profile')
+  return data
+}
+
+export async function saveLearningProfile(payload: {
+  goal_type: GoalType
+  exam_name?: string | null
+  school_grade?: number | null
+  degree_type?: string | null
+  major_subject?: string | null
+  subjects: string[]
+  language?: string | null
+  skill_track?: string | null
+  skill_level?: 'beginner' | 'intermediate' | 'advanced' | null
+  study_hours: number
+  preferences?: Record<string, unknown>
+}): Promise<LearningProfile> {
+  const { data } = await api.put<LearningProfile>('/learning/profile', payload)
+  return data
+}
+
+export async function getLearningDashboard(): Promise<LearningDashboardResponse> {
+  const { data } = await api.get<LearningDashboardResponse>('/learning/dashboard')
+  return data
+}
+
+export async function getLearningResources(topic?: string): Promise<LearningResourcesResult> {
+  const { data } = await api.get<LearningResourcesResult>('/learning/resources', {
+    params: topic ? { topic } : undefined,
+  })
+  return data
+}
+
+export async function getLanguagePath(): Promise<LanguagePathResponse> {
+  const { data } = await api.get<LanguagePathResponse>('/learning/language-path')
+  return data
+}
+
+export async function getCompanionDailyBrief(): Promise<CompanionBriefResponse> {
+  const { data } = await api.get<CompanionBriefResponse>('/companion/daily-brief')
   return data
 }
 
