@@ -29,7 +29,7 @@ import { Button } from '../components/ui/button'
 import { FloatingShapes } from '../components/ui/floating-shapes'
 import { ParticlesBackground } from '../components/ui/particles-background'
 import { useAuth } from '../contexts/auth-context'
-import { getGamesLeaderboard, submitGameScore } from '../lib/api'
+import { getGamesLeaderboard, recordGamificationEvent, submitGameScore } from '../lib/api'
 
 type GameMode = 'menu' | 'classic' | 'speed' | 'survival' | 'battle'
 type Difficulty = 'beginner' | 'intermediate' | 'advanced' | 'expert'
@@ -55,6 +55,38 @@ type LeaderboardEntry = {
   score: number
 }
 
+type SavedRunState = {
+  gameMode: Exclude<GameMode, 'menu'>
+  currentPuzzle: Puzzle
+  scrambledTiles: Tile[]
+  answerTiles: Tile[]
+  score: number
+  solvedCount: number
+  level: number
+  xp: number
+  streak: number
+  combo: number
+  coins: number
+  timeLeft: number
+  totalAttempts: number
+  correctAttempts: number
+  botScore: number
+  botAttempts: number
+  botCorrectAttempts: number
+  botCombo: number
+  botStatus: string
+  savedAt: string
+}
+
+type RunHistoryEntry = {
+  id: string
+  mode: Exclude<GameMode, 'menu'>
+  score: number
+  solvedCount: number
+  accuracy: number
+  endedAt: string
+}
+
 const XP_PER_CORRECT = 100
 const XP_PER_LEVEL = 100
 const HINT_COST = 50
@@ -63,6 +95,8 @@ const ROUND_SECONDS = 60
 const STORAGE_KEY = 'neuroprep_word_builder_leaderboard_v2'
 const GAME_KEY = 'word_builder'
 const LEADERBOARD_LIMIT = 5
+const SESSION_KEY_PREFIX = 'neuroprep_word_builder_session'
+const HISTORY_KEY_PREFIX = 'neuroprep_word_builder_history'
 
 const SOUND_FILES: Record<SoundType, string> = {
   move: '/sounds/move.mp3',
@@ -94,6 +128,22 @@ const puzzles: Puzzle[] = [
   { word: 'FUNCTION', scrambled: 'NFUCTION', category: 'mathematics', difficulty: 'intermediate', hint: 'A relation that maps each input to one output.' },
   { word: 'ARRAY', scrambled: 'RAAVY', category: 'english', difficulty: 'beginner', hint: 'Ordered collection of values in programming.' },
   { word: 'OBJECT', scrambled: 'JBTOCE', category: 'general-knowledge', difficulty: 'intermediate', hint: 'A thing, item, or structured instance in code.' },
+  { word: 'VARIABLE', scrambled: 'AELIBRAV', category: 'programming', difficulty: 'beginner', hint: 'Named storage for a value in code.' },
+  { word: 'NETWORK', scrambled: 'TROEKWN', category: 'technology', difficulty: 'intermediate', hint: 'Connected system of devices or people.' },
+  { word: 'CHEMISTRY', scrambled: 'RMYCHISTE', category: 'science', difficulty: 'advanced', hint: 'Science of substances and reactions.' },
+  { word: 'FRACTION', scrambled: 'RCOAITFN', category: 'mathematics', difficulty: 'beginner', hint: 'Represents part of a whole.' },
+  { word: 'GRAMMAR', scrambled: 'ARAGMRM', category: 'english', difficulty: 'beginner', hint: 'Rules for arranging words in a language.' },
+  { word: 'EMPIRE', scrambled: 'MEEIRP', category: 'history', difficulty: 'intermediate', hint: 'Large political unit ruling many territories.' },
+  { word: 'ASTEROID', scrambled: 'TDAIREOS', category: 'science', difficulty: 'advanced', hint: 'Rocky object orbiting the sun.' },
+  { word: 'KEYBOARD', scrambled: 'DKBOYRAE', category: 'technology', difficulty: 'beginner', hint: 'Primary input device for typing.' },
+  { word: 'DEBUGGER', scrambled: 'DUBREGEG', category: 'programming', difficulty: 'intermediate', hint: 'Tool used to inspect and fix code.' },
+  { word: 'EQUATION', scrambled: 'QUOTEIAN', category: 'mathematics', difficulty: 'intermediate', hint: 'A statement that two expressions are equal.' },
+  { word: 'NOVELIST', scrambled: 'TSLIVONE', category: 'english', difficulty: 'advanced', hint: 'A writer of long fictional prose.' },
+  { word: 'REVOLUTION', scrambled: 'VLOEOUTRIN', category: 'history', difficulty: 'advanced', hint: 'A major political or social upheaval.' },
+  { word: 'SATELLITE', scrambled: 'LESTTIAE', category: 'science', difficulty: 'advanced', hint: 'Object that orbits a larger body.' },
+  { word: 'ENCRYPTION', scrambled: 'TROEPNYICN', category: 'technology', difficulty: 'advanced', hint: 'Protecting information by encoding it.' },
+  { word: 'INTERFACE', scrambled: 'TNERFACEI', category: 'programming', difficulty: 'intermediate', hint: 'Shared boundary for interaction in systems or code.' },
+  { word: 'LEGENDARY', scrambled: 'DNYRGALEE', category: 'general-knowledge', difficulty: 'intermediate', hint: 'Described in stories or famous beyond ordinary scale.' },
 ]
 
 function buildTiles(scrambled: string): Tile[] {
@@ -168,6 +218,40 @@ function mergeLeaderboard(entries: LeaderboardEntry[]) {
     .slice(0, LEADERBOARD_LIMIT)
 }
 
+function getSessionStorageKey(userId?: string) {
+  return `${SESSION_KEY_PREFIX}:${userId ?? 'guest'}`
+}
+
+function getHistoryStorageKey(userId?: string) {
+  return `${HISTORY_KEY_PREFIX}:${userId ?? 'guest'}`
+}
+
+function readSavedRun(userId?: string): SavedRunState | null {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  try {
+    const raw = window.localStorage.getItem(getSessionStorageKey(userId))
+    return raw ? (JSON.parse(raw) as SavedRunState) : null
+  } catch {
+    return null
+  }
+}
+
+function readRunHistory(userId?: string): RunHistoryEntry[] {
+  if (typeof window === 'undefined') {
+    return []
+  }
+
+  try {
+    const raw = window.localStorage.getItem(getHistoryStorageKey(userId))
+    return raw ? (JSON.parse(raw) as RunHistoryEntry[]) : []
+  } catch {
+    return []
+  }
+}
+
 export function WordBuilderPage() {
   const { user } = useAuth()
   const soundRefs = useRef<Partial<Record<SoundType, HTMLAudioElement>>>({})
@@ -203,6 +287,8 @@ export function WordBuilderPage() {
   const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(true)
   const [leaderboardError, setLeaderboardError] = useState<string | null>(null)
   const [scoreSyncState, setScoreSyncState] = useState<ScoreSyncState>('idle')
+  const [resumeRun, setResumeRun] = useState<SavedRunState | null>(null)
+  const [recentRuns, setRecentRuns] = useState<RunHistoryEntry[]>([])
 
   const answer = useMemo(() => answerTiles.map((tile) => tile.letter).join(''), [answerTiles])
   const accuracy = useMemo(
@@ -281,9 +367,91 @@ export function WordBuilderPage() {
     [hydrateLeaderboard, persistLocalScore, scoreSyncState],
   )
 
+  const pushRunHistory = useCallback(
+    (entry: RunHistoryEntry) => {
+      if (typeof window === 'undefined') {
+        return
+      }
+
+      setRecentRuns((previous) => {
+        const next = [entry, ...previous].slice(0, 6)
+        window.localStorage.setItem(getHistoryStorageKey(user?.id), JSON.stringify(next))
+        return next
+      })
+    },
+    [user?.id],
+  )
+
   useEffect(() => {
     void hydrateLeaderboard()
   }, [hydrateLeaderboard])
+
+  useEffect(() => {
+    setResumeRun(readSavedRun(user?.id))
+    setRecentRuns(readRunHistory(user?.id))
+  }, [user?.id])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !user?.id) {
+      return
+    }
+
+    const key = getSessionStorageKey(user.id)
+
+    if (gameMode === 'menu' || gameOverMessage) {
+      window.localStorage.removeItem(key)
+      setResumeRun(null)
+      return
+    }
+
+    const snapshot: SavedRunState = {
+      gameMode,
+      currentPuzzle,
+      scrambledTiles,
+      answerTiles,
+      score,
+      solvedCount,
+      level,
+      xp,
+      streak,
+      combo,
+      coins,
+      timeLeft,
+      totalAttempts,
+      correctAttempts,
+      botScore,
+      botAttempts,
+      botCorrectAttempts,
+      botCombo,
+      botStatus,
+      savedAt: new Date().toISOString(),
+    }
+
+    window.localStorage.setItem(key, JSON.stringify(snapshot))
+    setResumeRun(snapshot)
+  }, [
+    answerTiles,
+    botAttempts,
+    botCombo,
+    botCorrectAttempts,
+    botScore,
+    botStatus,
+    coins,
+    combo,
+    correctAttempts,
+    currentPuzzle,
+    gameMode,
+    gameOverMessage,
+    level,
+    score,
+    scrambledTiles,
+    solvedCount,
+    streak,
+    timeLeft,
+    totalAttempts,
+    user?.id,
+    xp,
+  ])
 
   useEffect(() => {
     if (typeof Audio === 'undefined') {
@@ -414,6 +582,30 @@ export function WordBuilderPage() {
     resetBoard(randomPuzzle())
   }
 
+  function restoreRun(snapshot: SavedRunState) {
+    setGameMode(snapshot.gameMode)
+    setCurrentPuzzle(snapshot.currentPuzzle)
+    setScrambledTiles(snapshot.scrambledTiles)
+    setAnswerTiles(snapshot.answerTiles)
+    setScore(snapshot.score)
+    setSolvedCount(snapshot.solvedCount)
+    setLevel(snapshot.level)
+    setXp(snapshot.xp)
+    setStreak(snapshot.streak)
+    setCombo(snapshot.combo)
+    setCoins(snapshot.coins)
+    setTimeLeft(snapshot.timeLeft)
+    setTotalAttempts(snapshot.totalAttempts)
+    setCorrectAttempts(snapshot.correctAttempts)
+    setBotScore(snapshot.botScore)
+    setBotAttempts(snapshot.botAttempts)
+    setBotCorrectAttempts(snapshot.botCorrectAttempts)
+    setBotCombo(snapshot.botCombo)
+    setBotStatus(snapshot.botStatus)
+    setGameOverMessage(null)
+    setScoreSyncState('idle')
+  }
+
   async function handleBackToMenu() {
     if (score > 0 && scoreSyncState !== 'saved') {
       await persistScore(score)
@@ -467,6 +659,14 @@ export function WordBuilderPage() {
   }
 
   function finishRound(message: string, finalScore = score) {
+    pushRunHistory({
+      id: crypto.randomUUID(),
+      mode: gameMode === 'menu' ? 'classic' : gameMode,
+      score: finalScore,
+      solvedCount,
+      accuracy,
+      endedAt: new Date().toISOString(),
+    })
     void persistScore(finalScore)
     setGameOverMessage(message)
   }
@@ -506,6 +706,17 @@ export function WordBuilderPage() {
       }
 
       setShowSuccess(true)
+      void recordGamificationEvent({
+        event_type: 'word_builder_puzzle_solved',
+        count: 1,
+        subject: formatCategory(currentPuzzle.category),
+        topic: currentPuzzle.word,
+        metadata: {
+          difficulty: currentPuzzle.difficulty,
+          mode: gameMode,
+          score: nextScore,
+        },
+      })
       window.setTimeout(() => {
         setShowSuccess(false)
         resetBoard(randomPuzzle(currentPuzzle.word))
@@ -568,6 +779,63 @@ export function WordBuilderPage() {
             </div>
 
             <GameModeSelector onSelectMode={startMode} />
+
+            {resumeRun || recentRuns.length ? (
+              <div className="mt-8 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+                <div className="glass-panel p-5 text-left">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">Saved Run</p>
+                  {resumeRun ? (
+                    <>
+                      <p className="mt-3 text-xl font-bold text-white">
+                        {resumeRun.gameMode} mode · {resumeRun.score} points
+                      </p>
+                      <p className="mt-2 text-sm text-slate-400">
+                        {resumeRun.solvedCount} solved · {resumeRun.timeLeft}s left · saved {new Date(resumeRun.savedAt).toLocaleString()}
+                      </p>
+                      <div className="mt-4 flex flex-wrap gap-3">
+                        <Button onClick={() => restoreRun(resumeRun)} className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white">
+                          Resume Run
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          onClick={() => {
+                            if (typeof window !== 'undefined') {
+                              window.localStorage.removeItem(getSessionStorageKey(user?.id))
+                            }
+                            setResumeRun(null)
+                          }}
+                        >
+                          Clear Save
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="mt-3 text-sm text-slate-400">No suspended run is waiting.</p>
+                  )}
+                </div>
+
+                <div className="glass-panel p-5 text-left">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">Recent Runs</p>
+                  <div className="mt-3 space-y-3">
+                    {recentRuns.length ? (
+                      recentRuns.map((run) => (
+                        <div key={run.id} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-semibold capitalize text-white">{run.mode}</p>
+                            <span className="text-sm font-bold text-cyan-200">{run.score}</span>
+                          </div>
+                          <p className="mt-1 text-xs text-slate-400">
+                            {run.solvedCount} solved · {run.accuracy}% accuracy
+                          </p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-slate-400">No completed runs yet.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </motion.div>
         </div>
       </div>

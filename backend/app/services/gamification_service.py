@@ -20,6 +20,7 @@ LEVEL_TITLES = [
 XP_REWARDS = {
     'study_session_completed': 10,
     'lesson_completed': 10,
+    'word_builder_puzzle_solved': 12,
     'quiz_submitted': 20,
     'flashcards_reviewed': 8,
     'mock_submitted': 50,
@@ -350,6 +351,9 @@ class GamificationService:
             counters['qualifies_for_streak'] = duration >= 10 and metadata.get('session_type', 'study') == 'study'
         if event_type == 'lesson_completed':
             counters['lessons_completed'] = count
+        if event_type == 'word_builder_puzzle_solved':
+            counters['lessons_completed'] = count
+            counters['questions_answered'] = count
         if event_type == 'flashcards_reviewed':
             counters['flashcards_reviewed'] = count
         if event_type == 'quiz_submitted':
@@ -516,6 +520,7 @@ class GamificationService:
         return {
             'study_session_completed': 'Study session completed',
             'lesson_completed': 'Lesson completed',
+            'word_builder_puzzle_solved': 'Word Builder puzzle solved',
             'quiz_submitted': 'Quiz completed',
             'flashcards_reviewed': 'Flashcards reviewed',
             'mock_submitted': 'Mock test completed',
