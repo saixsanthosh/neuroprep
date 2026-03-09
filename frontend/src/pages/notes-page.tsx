@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   BookOpenText,
@@ -14,7 +14,7 @@ import {
   Wand2,
 } from 'lucide-react'
 
-import { api } from '../lib/api'
+import { api, createLibraryNote, getLibraryNotes, updateLibraryNote, type LibraryNote } from '../lib/api'
 import { Button } from '../components/ui/button'
 import { CardDescription, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
@@ -34,42 +34,6 @@ type NoteRecord = {
   content: string
   summary: string
 }
-
-const starterNotes: NoteRecord[] = [
-  {
-    id: 'electrostatics-core',
-    title: 'Electrostatics Revision Grid',
-    subject: 'Physics',
-    folder: 'Revision Packs',
-    pinned: true,
-    updatedAt: '10 min ago',
-    content:
-      'Potential, electric field, Coulomb force, and equipotential surfaces. Focus on sign conventions and quick derivations.',
-    summary: 'Field, potential, Coulomb force, equipotential surfaces, and sign traps.',
-  },
-  {
-    id: 'organic-mechanisms',
-    title: 'Organic Mechanism Traps',
-    subject: 'Chemistry',
-    folder: 'AI Drafts',
-    pinned: false,
-    updatedAt: '1 hour ago',
-    content:
-      'SN1 vs SN2, carbocation stability, directing effects, and common reagent exceptions with fast examples.',
-    summary: 'Mechanism branches, carbocation logic, directing effects, and reagent exceptions.',
-  },
-  {
-    id: 'probability-fast',
-    title: 'Probability Sprint Notes',
-    subject: 'Math',
-    folder: 'Formula Sheets',
-    pinned: false,
-    updatedAt: 'Yesterday',
-    content:
-      'Conditional probability, Bayes theorem, and permutation edge cases with 6 short worked examples.',
-    summary: 'Conditional probability, Bayes, and permutation edge cases in one sprint sheet.',
-  },
-]
 
 const quickTopics = [
   'Electrostatics for JEE revision',
@@ -121,21 +85,65 @@ function inferSubjectFromTopic(topic: string) {
   return 'General'
 }
 
+function mapLibraryNote(note: LibraryNote): NoteRecord {
+  return {
+    id: note.id,
+    title: note.title,
+    subject: inferSubjectFromTopic(note.title),
+    folder: 'AI Drafts',
+    pinned: false,
+    updatedAt: new Date(note.updated_at).toLocaleString(),
+    content: note.content,
+    summary: buildSummary(note.content),
+  }
+}
+
 export function NotesPage() {
   const [topic, setTopic] = useState('Electrostatics for JEE revision')
   const [search, setSearch] = useState('')
   const [folderFilter, setFolderFilter] = useState<FolderFilter>('All')
   const [isGenerating, setIsGenerating] = useState(false)
   const [isSummarizing, setIsSummarizing] = useState(false)
-  const [editorContent, setEditorContent] = useState<string>(starterNotes[0].content)
-  const [savedNotes, setSavedNotes] = useState<NoteRecord[]>(starterNotes)
-  const [activeNoteId, setActiveNoteId] = useState<string>(starterNotes[0].id)
-  const [flashcards, setFlashcards] = useState<Flashcard[]>(buildFlashcards(starterNotes[0].content))
-  const [summary, setSummary] = useState(starterNotes[0].summary)
+  const [editorContent, setEditorContent] = useState<string>('')
+  const [savedNotes, setSavedNotes] = useState<NoteRecord[]>([])
+  const [activeNoteId, setActiveNoteId] = useState<string>('')
+  const [flashcards, setFlashcards] = useState<Flashcard[]>([])
+  const [summary, setSummary] = useState('- Generate or open a note to build a summary.')
   const [statusMessage, setStatusMessage] = useState('')
   const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([])
 
   const activeNote = savedNotes.find((note) => note.id === activeNoteId) ?? savedNotes[0]
+
+  useEffect(() => {
+    let active = true
+    const loadNotes = async () => {
+      try {
+        const notes = await getLibraryNotes(undefined, 40)
+        if (!active) return
+        const mapped = notes.map(mapLibraryNote)
+        setSavedNotes(mapped)
+        if (mapped[0]) {
+          setActiveNoteId(mapped[0].id)
+          setTopic(mapped[0].title)
+          setEditorContent(mapped[0].content)
+          setSummary(mapped[0].summary)
+          setFlashcards(buildFlashcards(mapped[0].content))
+        } else {
+          setEditorContent('')
+          setSummary('- Generate or open a note to build a summary.')
+          setFlashcards([])
+        }
+      } catch {
+        if (!active) return
+        setSavedNotes([])
+      }
+    }
+
+    void loadNotes()
+    return () => {
+      active = false
+    }
+  }, [])
 
   const visibleNotes = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -179,42 +187,29 @@ export function NotesPage() {
     }
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const title = topic.trim() || 'Untitled AI Notes'
     const nextSummary = buildSummary(editorContent)
     const existingNote = savedNotes.find((note) => note.id === activeNoteId && note.title === title)
 
-    if (existingNote) {
-      setSavedNotes((current) =>
-        current.map((note) =>
-          note.id === existingNote.id
-            ? {
-                ...note,
-                subject: inferSubjectFromTopic(title),
-                updatedAt: 'Just now',
-                content: editorContent,
-                summary: nextSummary,
-              }
-            : note,
-        ),
-      )
-    } else {
-      const newNote: NoteRecord = {
-        id: `${Date.now()}`,
-        title,
-        subject: inferSubjectFromTopic(title),
-        folder: 'AI Drafts',
-        pinned: false,
-        updatedAt: 'Just now',
-        content: editorContent,
-        summary: nextSummary,
+    try {
+      if (existingNote) {
+        const updated = await updateLibraryNote(existingNote.id, { title, content: editorContent })
+        const mapped = mapLibraryNote(updated)
+        setSavedNotes((current) => current.map((note) => (note.id === mapped.id ? mapped : note)))
+        setActiveNoteId(mapped.id)
+      } else {
+        const created = await createLibraryNote({ title, content: editorContent })
+        const mapped = mapLibraryNote(created)
+        setSavedNotes((current) => [mapped, ...current])
+        setActiveNoteId(mapped.id)
       }
-      setSavedNotes((current) => [newNote, ...current])
-      setActiveNoteId(newNote.id)
-    }
 
-    setSummary(nextSummary)
-    setStatusMessage('Note saved to your library.')
+      setSummary(nextSummary)
+      setStatusMessage('Note saved to your library.')
+    } catch {
+      setStatusMessage('Saving the note failed.')
+    }
   }
 
   const handleSummarize = async () => {
@@ -394,39 +389,45 @@ export function NotesPage() {
             </div>
 
             <div className="mt-4 space-y-3">
-              {visibleNotes.map((note) => (
-                <button
-                  key={note.id}
-                  type="button"
-                  onClick={() => {
-                    setActiveNoteId(note.id)
-                    setEditorContent(note.content)
-                    setTopic(note.title)
-                    setSummary(note.summary)
-                    setFlashcards(buildFlashcards(note.content))
-                  }}
-                  className={`w-full rounded-[1.25rem] border p-4 text-left transition ${
-                    activeNoteId === note.id
-                      ? 'border-cyan-300/30 bg-cyan-300/10'
-                      : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-white">{note.title}</p>
-                        {note.pinned ? <Pin className="h-3.5 w-3.5 text-cyan-300" /> : null}
+              {visibleNotes.length ? (
+                visibleNotes.map((note) => (
+                  <button
+                    key={note.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveNoteId(note.id)
+                      setEditorContent(note.content)
+                      setTopic(note.title)
+                      setSummary(note.summary)
+                      setFlashcards(buildFlashcards(note.content))
+                    }}
+                    className={`w-full rounded-[1.25rem] border p-4 text-left transition ${
+                      activeNoteId === note.id
+                        ? 'border-cyan-300/30 bg-cyan-300/10'
+                        : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-white">{note.title}</p>
+                          {note.pinned ? <Pin className="h-3.5 w-3.5 text-cyan-300" /> : null}
+                        </div>
+                        <p className="mt-1 text-xs text-slate-400">
+                          {note.subject} | {note.folder}
+                        </p>
                       </div>
-                      <p className="mt-1 text-xs text-slate-400">
-                        {note.subject} · {note.folder}
-                      </p>
+                      <span className="rounded-full border border-white/10 bg-black/20 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-300">
+                        {note.updatedAt}
+                      </span>
                     </div>
-                    <span className="rounded-full border border-white/10 bg-black/20 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-300">
-                      {note.updatedAt}
-                    </span>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                ))
+              ) : (
+                <div className="rounded-[1.25rem] border border-dashed border-white/10 bg-white/5 p-4 text-sm text-slate-400">
+                  No saved notes yet. Generate or save the first note to build the library.
+                </div>
+              )}
             </div>
           </GlowingCard>
         </motion.div>
@@ -569,3 +570,4 @@ export function NotesPage() {
     </div>
   )
 }
+

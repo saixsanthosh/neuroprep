@@ -341,6 +341,102 @@ export type MockResult = {
   created_at: string
 }
 
+export type StudySession = {
+  id: string
+  user_id: string
+  subject: string
+  duration: number
+  session_type: 'study' | 'break'
+  date: string
+}
+
+export type StudyTask = {
+  id: string
+  user_id: string
+  title: string
+  subject: string
+  deadline: string
+  status: 'pending' | 'completed'
+}
+
+export type QuizSessionStart = {
+  quiz_id: string
+  subject: string
+  topic: string
+  questions: string[]
+}
+
+export type QuizHistoryEntry = {
+  id: string
+  user_id: string
+  subject: string
+  score: number
+  total_questions: number
+  accuracy: number
+  time_taken: number
+  created_at: string
+}
+
+export type LibraryNote = {
+  id: string
+  user_id: string
+  title: string
+  content: string
+  created_at: string
+  updated_at: string
+}
+
+export type LibraryFlashcard = {
+  id: string
+  user_id: string
+  question: string
+  answer: string
+  subject: string
+  difficulty: 'easy' | 'medium' | 'hard'
+}
+
+export type RevisionAction = {
+  title: string
+  description: string
+  route: string
+}
+
+export type RevisionDigest = {
+  weak_topics: WeakTopic[]
+  flashcards: LibraryFlashcard[]
+  recent_notes: LibraryNote[]
+  action_plan: RevisionAction[]
+}
+
+export type DocumentInsightResponse = {
+  summary: string
+  key_points: string[]
+  quiz_prompts: string[]
+  study_actions: string[]
+  saved_note: LibraryNote | null
+}
+
+export type CommunityReply = {
+  id: string
+  user_id: string
+  author_name: string
+  body: string
+  created_at: string
+}
+
+export type CommunityPost = {
+  id: string
+  user_id: string
+  title: string
+  body: string
+  topic: string
+  tags: string[]
+  upvotes: number
+  author_name: string
+  created_at: string
+  replies: CommunityReply[]
+}
+
 export async function login(identifier: string, password: string): Promise<AuthResponse> {
   const { data } = await api.post<AuthResponse>('/auth/login', { identifier, password })
   return data
@@ -515,5 +611,157 @@ export async function submitMockSession(payload: MockSubmitPayload): Promise<Moc
 
 export async function getMockResults(limit = 5): Promise<MockResult[]> {
   const { data } = await api.get<MockResult[]>(`/mock/results?limit=${limit}`)
+  return data
+}
+
+export async function getStudyHistory(limit = 200): Promise<StudySession[]> {
+  const { data } = await api.get<StudySession[]>('/study/history', { params: { limit } })
+  return data
+}
+
+export async function createStudySession(payload: {
+  subject: string
+  duration: number
+  session_type: 'study' | 'break'
+  date?: string
+}): Promise<StudySession> {
+  const { data } = await api.post<StudySession>('/study/session', payload)
+  return data
+}
+
+export async function getTasks(status?: 'pending' | 'completed'): Promise<StudyTask[]> {
+  const { data } = await api.get<StudyTask[]>('/tasks', { params: status ? { status } : undefined })
+  return data
+}
+
+export async function createTask(payload: {
+  title: string
+  subject: string
+  deadline: string
+  status?: 'pending' | 'completed'
+}): Promise<StudyTask> {
+  const { data } = await api.post<StudyTask>('/tasks', payload)
+  return data
+}
+
+export async function updateTask(payload: {
+  id: string
+  title?: string
+  subject?: string
+  deadline?: string
+  status?: 'pending' | 'completed'
+}): Promise<StudyTask> {
+  const { data } = await api.put<StudyTask>('/tasks/update', payload)
+  return data
+}
+
+export async function deleteTask(taskId: string): Promise<MessageResponse> {
+  const { data } = await api.delete<MessageResponse>('/tasks', { params: { task_id: taskId } })
+  return data
+}
+
+export async function startQuiz(payload: {
+  subject: string
+  topic: string
+  difficulty?: 'easy' | 'medium' | 'hard'
+  question_count?: number
+}): Promise<QuizSessionStart> {
+  const { data } = await api.post<QuizSessionStart>('/quiz/start', payload)
+  return data
+}
+
+export async function submitQuiz(payload: {
+  subject: string
+  score: number
+  total_questions: number
+  time_taken: number
+}): Promise<QuizHistoryEntry> {
+  const { data } = await api.post<QuizHistoryEntry>('/quiz/submit', payload)
+  return data
+}
+
+export async function getQuizHistory(limit = 100): Promise<QuizHistoryEntry[]> {
+  const { data } = await api.get<QuizHistoryEntry[]>('/quiz/history', { params: { limit } })
+  return data
+}
+
+export async function getLibraryNotes(search?: string, limit = 50): Promise<LibraryNote[]> {
+  const { data } = await api.get<LibraryNote[]>('/library/notes', {
+    params: { limit, ...(search ? { search } : {}) },
+  })
+  return data
+}
+
+export async function createLibraryNote(payload: { title: string; content: string }): Promise<LibraryNote> {
+  const { data } = await api.post<LibraryNote>('/library/notes', payload)
+  return data
+}
+
+export async function updateLibraryNote(noteId: string, payload: { title?: string; content?: string }): Promise<LibraryNote> {
+  const { data } = await api.put<LibraryNote>(`/library/notes/${noteId}`, payload)
+  return data
+}
+
+export async function getFlashcards(subject?: string, limit = 200): Promise<LibraryFlashcard[]> {
+  const { data } = await api.get<LibraryFlashcard[]>('/library/flashcards', {
+    params: { limit, ...(subject ? { subject } : {}) },
+  })
+  return data
+}
+
+export async function createFlashcards(payload: {
+  cards: Array<{
+    question: string
+    answer: string
+    subject: string
+    difficulty?: 'easy' | 'medium' | 'hard'
+  }>
+}): Promise<LibraryFlashcard[]> {
+  const { data } = await api.post<LibraryFlashcard[]>('/library/flashcards', payload)
+  return data
+}
+
+export async function deleteFlashcard(flashcardId: string): Promise<MessageResponse> {
+  const { data } = await api.delete<MessageResponse>(`/library/flashcards/${flashcardId}`)
+  return data
+}
+
+export async function getRevisionDigest(): Promise<RevisionDigest> {
+  const { data } = await api.get<RevisionDigest>('/library/revision')
+  return data
+}
+
+export async function analyzeDocument(payload: {
+  title: string
+  text: string
+  subject?: string | null
+  save_note?: boolean
+}): Promise<DocumentInsightResponse> {
+  const { data } = await api.post<DocumentInsightResponse>('/library/document-insight', payload)
+  return data
+}
+
+export async function getCommunityPosts(limit = 30): Promise<CommunityPost[]> {
+  const { data } = await api.get<CommunityPost[]>('/community/posts', { params: { limit } })
+  return data
+}
+
+export async function createCommunityPost(payload: {
+  title: string
+  body: string
+  topic: string
+  tags: string[]
+}): Promise<CommunityPost> {
+  const { data } = await api.post<CommunityPost>('/community/posts', payload)
+  return data
+}
+
+export async function upvoteCommunityPost(postId: string): Promise<CommunityPost> {
+  const { data } = await api.post<CommunityPost>(`/community/posts/${postId}/upvote`)
+  return data
+}
+
+export async function replyToCommunityPost(postId: string, body: string): Promise<CommunityReply> {
+  const { data } = await api.post<CommunityReply>(`/community/posts/${postId}/reply`, { body })
   return data
 }

@@ -19,6 +19,27 @@ const AITutorPage = lazy(() =>
   import('./pages/ai-tutor-page').then((module) => ({ default: module.AITutorPage })),
 )
 const NotesPage = lazy(() => import('./pages/notes-page').then((module) => ({ default: module.NotesPage })))
+const DocumentLearningPage = lazy(() =>
+  import('./pages/document-learning-page').then((module) => ({ default: module.DocumentLearningPage })),
+)
+const ResearchModePage = lazy(() =>
+  import('./pages/research-mode-page').then((module) => ({ default: module.ResearchModePage })),
+)
+const FlashcardsPage = lazy(() =>
+  import('./pages/flashcards-page').then((module) => ({ default: module.FlashcardsPage })),
+)
+const RevisionPage = lazy(() =>
+  import('./pages/revision-page').then((module) => ({ default: module.RevisionPage })),
+)
+const StudyTrackerPage = lazy(() =>
+  import('./pages/study-tracker-page').then((module) => ({ default: module.StudyTrackerPage })),
+)
+const LanguageLabPage = lazy(() =>
+  import('./pages/language-lab-page').then((module) => ({ default: module.LanguageLabPage })),
+)
+const CommunityPage = lazy(() =>
+  import('./pages/community-page').then((module) => ({ default: module.CommunityPage })),
+)
 const PlannerPage = lazy(() =>
   import('./pages/planner-page').then((module) => ({ default: module.PlannerPage })),
 )
@@ -86,6 +107,13 @@ function App() {
           <Route path="modular" element={<ModularDashboardPage />} />
           <Route path="ai-tutor" element={<AITutorPage />} />
           <Route path="notes" element={<NotesPage />} />
+          <Route path="document-learning" element={<DocumentLearningPage />} />
+          <Route path="research-mode" element={<ResearchModePage />} />
+          <Route path="flashcards" element={<FlashcardsPage />} />
+          <Route path="revision" element={<RevisionPage />} />
+          <Route path="tracker" element={<StudyTrackerPage />} />
+          <Route path="language-lab" element={<LanguageLabPage />} />
+          <Route path="community" element={<CommunityPage />} />
           <Route path="planner" element={<PlannerPage />} />
           <Route path="mock-tests" element={<MockTestsPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />

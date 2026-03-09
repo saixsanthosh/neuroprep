@@ -13,10 +13,14 @@ _demo_tables: dict[str, list[dict]] = {
     'achievements': [],
     'study_sessions': [],
     'study_tasks': [],
+    'notes': [],
+    'flashcards': [],
     'quiz_results': [],
     'mock_test_results': [],
     'weak_topics': [],
     'game_scores': [],
+    'community_posts': [],
+    'community_replies': [],
 }
 
 
