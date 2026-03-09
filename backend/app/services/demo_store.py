@@ -39,7 +39,21 @@ def list_rows(
 ) -> list[dict]:
     rows = [dict(row) for row in _demo_tables[table_name] if predicate is None or predicate(row)]
     if order_by:
-        rows.sort(key=lambda row: row.get(order_by) or '', reverse=desc)
+        def sort_value(row: dict):
+            value = row.get(order_by)
+            if value is None:
+                return (2, '')
+            if isinstance(value, bool):
+                return (0, float(int(value)))
+            if isinstance(value, (int, float)):
+                return (0, float(value))
+            text = str(value)
+            try:
+                return (0, float(text))
+            except ValueError:
+                return (1, text)
+
+        rows.sort(key=sort_value, reverse=desc)
     if limit is not None:
         rows = rows[:limit]
     return rows

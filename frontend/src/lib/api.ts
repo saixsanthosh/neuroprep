@@ -145,11 +145,62 @@ export type LanguageLesson = {
   difficulty: string
 }
 
+export type LanguageRoadmapStep = {
+  day: string
+  title: string
+  objective: string
+}
+
+export type LanguageResourceLink = {
+  source: string
+  title: string
+  description: string
+  url: string
+}
+
 export type LanguagePathResponse = {
   language: string
   skill_level: string
   speech_stack: Record<string, boolean>
   lessons: LanguageLesson[]
+  roadmap: LanguageRoadmapStep[]
+  survival_pack: string[]
+  resource_links: LanguageResourceLink[]
+}
+
+export type StudyHoursPoint = {
+  date: string
+  hours: number
+}
+
+export type StudyHoursResponse = {
+  daily: StudyHoursPoint[]
+  monthly_daily: StudyHoursPoint[]
+  weekly_total: number
+}
+
+export type PerformanceSeries = {
+  label: string
+  value: number
+}
+
+export type PerformanceResponse = {
+  subject_performance: PerformanceSeries[]
+  accuracy_trend: PerformanceSeries[]
+  mock_performance: PerformanceSeries[]
+}
+
+export type WeakTopic = {
+  subject: string
+  topic: string
+  weakness_score: number
+}
+
+export type StudyStatsResponse = {
+  today_hours: number
+  weekly_hours: number
+  study_streak: number
+  productivity_score: number
 }
 
 export type GamificationProfile = {
@@ -425,6 +476,26 @@ export async function requestPasswordReset(email: string, redirect_to: string): 
 
 export async function getWeeklyReport(): Promise<WeeklyReportResponse> {
   const { data } = await api.get<WeeklyReportResponse>('/analytics/weekly-report')
+  return data
+}
+
+export async function getAnalyticsStudyHours(): Promise<StudyHoursResponse> {
+  const { data } = await api.get<StudyHoursResponse>('/analytics/study-hours')
+  return data
+}
+
+export async function getAnalyticsPerformance(): Promise<PerformanceResponse> {
+  const { data } = await api.get<PerformanceResponse>('/analytics/performance')
+  return data
+}
+
+export async function getAnalyticsWeakTopics(): Promise<WeakTopic[]> {
+  const { data } = await api.get<WeakTopic[]>('/analytics/weak-topics')
+  return data
+}
+
+export async function getStudyStats(): Promise<StudyStatsResponse> {
+  const { data } = await api.get<StudyStatsResponse>('/study/stats')
   return data
 }
 

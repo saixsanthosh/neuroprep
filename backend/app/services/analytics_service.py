@@ -40,8 +40,11 @@ class AnalyticsService:
                 continue
             daily_minutes[row['date']] += int(row['duration'])
 
-        last_7_days = [date.today() - timedelta(days=index) for index in range(6, -1, -1)]
+        today = date.today()
+        last_7_days = [today - timedelta(days=index) for index in range(6, -1, -1)]
+        last_30_days = [today - timedelta(days=index) for index in range(29, -1, -1)]
         daily = []
+        monthly_daily = []
         weekly_total = 0.0
 
         for day in last_7_days:
@@ -49,7 +52,15 @@ class AnalyticsService:
             daily.append({'date': day.isoformat(), 'hours': hours})
             weekly_total += hours
 
-        return {'daily': daily, 'weekly_total': round(weekly_total, 2)}
+        for day in last_30_days:
+            monthly_daily.append(
+                {
+                    'date': day.isoformat(),
+                    'hours': round(daily_minutes.get(day.isoformat(), 0) / 60, 2),
+                }
+            )
+
+        return {'daily': daily, 'monthly_daily': monthly_daily, 'weekly_total': round(weekly_total, 2)}
 
     def performance(self, user_id: str) -> dict:
         if self.demo_mode:

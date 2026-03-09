@@ -1,27 +1,11 @@
 import { motion } from 'framer-motion'
 import { Line } from 'react-chartjs-2'
 
+import type { StudyHoursPoint } from '../../lib/api'
+import { ChartEmptyState } from './chart-empty-state'
 import { ensureChartRegistration } from './chart-setup'
 
 ensureChartRegistration()
-
-const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-
-const data = {
-  labels,
-  datasets: [
-    {
-      label: 'Study Hours',
-      data: [2.5, 3.2, 4.1, 2.8, 5.5, 3.9, 4.7],
-      borderColor: 'rgba(34, 211, 238, 1)',
-      backgroundColor: 'rgba(34, 211, 238, 0.14)',
-      borderWidth: 3,
-      pointRadius: 4,
-      fill: true,
-      tension: 0.35,
-    },
-  ],
-}
 
 const options = {
   responsive: true,
@@ -48,7 +32,39 @@ const options = {
   },
 }
 
-export function WeeklyStudyHoursChart() {
+function formatLabel(dateValue: string) {
+  const date = new Date(dateValue)
+  if (Number.isNaN(date.getTime())) return dateValue
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date)
+}
+
+export function WeeklyStudyHoursChart({ points = [] }: { points?: StudyHoursPoint[] }) {
+  const hasRealData = points.some((point) => point.hours > 0)
+  if (!points.length || !hasRealData) {
+    return (
+      <ChartEmptyState
+        title="No study hours yet"
+        message="Start a study session to populate your hours trend and weekly workload graph."
+      />
+    )
+  }
+
+  const data = {
+    labels: points.map((point) => formatLabel(point.date)),
+    datasets: [
+      {
+        label: 'Study Hours',
+        data: points.map((point) => point.hours),
+        borderColor: 'rgba(34, 211, 238, 1)',
+        backgroundColor: 'rgba(34, 211, 238, 0.14)',
+        borderWidth: 3,
+        pointRadius: 4,
+        fill: true,
+        tension: 0.35,
+      },
+    ],
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}

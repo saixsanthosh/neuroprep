@@ -8,6 +8,7 @@ class StudyHoursPoint(BaseModel):
 
 class StudyHoursResponse(BaseModel):
     daily: list[StudyHoursPoint]
+    monthly_daily: list[StudyHoursPoint]
     weekly_total: float
 
 

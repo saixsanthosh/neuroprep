@@ -1,7 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { Brain, Gamepad2, Swords, Target, Trophy, X, Zap } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 
 import { useAuth } from '../contexts/auth-context'
 import { useAnimatedNumber } from '../hooks/use-animated-number'
@@ -101,6 +100,10 @@ function readTimerState(): TimerState {
   }
 }
 
+function writeTimerState(nextState: TimerState) {
+  window.localStorage.setItem('neuroprep_timer_state', JSON.stringify(nextState))
+}
+
 function readBestScores(): Record<string, number> {
   try {
     const raw = window.localStorage.getItem('neuroprep_game_best_scores')
@@ -167,7 +170,6 @@ function GameCard({
 }
 
 export function GamesPage() {
-  const navigate = useNavigate()
   const { user } = useAuth()
   const [leaderboard, setLeaderboard] = useState<GamesLeaderboardEntry[]>([])
   const [leaderboardLoading, setLeaderboardLoading] = useState(true)
@@ -216,10 +218,21 @@ export function GamesPage() {
   const canPlay = timerState.mode === 'break'
   const currentPrompt = activeGame?.prompts[questionIndex]
 
+  const activateBreakMode = () => {
+    const nextState: TimerState = {
+      mode: 'break',
+      running: false,
+      secondsLeft: timerState.secondsLeft && timerState.mode === 'break' ? timerState.secondsLeft : 5 * 60,
+      completedSessions: timerState.completedSessions ?? 0,
+    }
+    writeTimerState(nextState)
+    setTimerState(nextState)
+    setStatusMessage('Break mode activated. Games are now unlocked for this session.')
+  }
+
   const openGame = (game: GameDefinition) => {
     if (!canPlay) {
-      navigate('/dashboard/timer')
-      return
+      activateBreakMode()
     }
 
     setStatusMessage('')
@@ -275,11 +288,14 @@ export function GamesPage() {
   }
 
   const topPlayerLabel = useMemo(() => {
-    if (!leaderboard.length) {
-      return 'No scores submitted yet'
+    if (totalScore === 0) {
+      return 'Play a round to create your first game score.'
     }
-    return `${leaderboard[0].username} leads with ${leaderboard[0].score} points`
-  }, [leaderboard])
+    if (!leaderboard.length) {
+      return 'No synced leaderboard entries yet.'
+    }
+    return `Global leaderboard live. Top score right now: ${leaderboard[0].score}`
+  }, [leaderboard, totalScore])
 
   return (
     <div className="relative min-h-screen">
@@ -297,7 +313,7 @@ export function GamesPage() {
         >
           <h1 className="text-gradient text-3xl font-black sm:text-4xl">Break Mini Games</h1>
           <p className="mt-2 text-slate-300">
-            Quick educational games unlock from break mode. If you are still in a study session, the page routes you back to the timer.
+            Quick educational games unlock inside break mode. If break mode is not active yet, starting any game launches a 5-minute break automatically.
           </p>
         </motion.div>
 
@@ -317,6 +333,11 @@ export function GamesPage() {
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">
               Break mode: <span className={canPlay ? 'text-emerald-300' : 'text-amber-200'}>{canPlay ? 'active' : 'not active'}</span>
             </div>
+            {!canPlay ? (
+              <Button variant="secondary" onClick={activateBreakMode}>
+                Start 5-minute break
+              </Button>
+            ) : null}
           </div>
           {statusMessage ? (
             <p className="mt-4 rounded-2xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100">
@@ -450,3 +471,4 @@ export function GamesPage() {
     </div>
   )
 }
+

@@ -102,8 +102,24 @@ class LanguageLessonResponse(BaseModel):
     difficulty: str
 
 
+class LanguageRoadmapStepResponse(BaseModel):
+    day: str
+    title: str
+    objective: str
+
+
+class LanguageResourceLinkResponse(BaseModel):
+    source: str
+    title: str
+    description: str
+    url: str
+
+
 class LanguagePathResponse(BaseModel):
     language: str
     skill_level: str
     speech_stack: dict[str, bool]
     lessons: list[LanguageLessonResponse]
+    roadmap: list[LanguageRoadmapStepResponse] = Field(default_factory=list)
+    survival_pack: list[str] = Field(default_factory=list)
+    resource_links: list[LanguageResourceLinkResponse] = Field(default_factory=list)

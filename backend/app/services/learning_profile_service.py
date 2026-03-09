@@ -311,6 +311,147 @@ class LearningProfileService:
 
         language = profile.get('language') or 'Spanish'
         skill_level = profile.get('skill_level') or 'beginner'
+        if language.lower() == 'japanese' and skill_level == 'beginner':
+            return {
+                'language': language,
+                'skill_level': skill_level,
+                'lessons': [
+                    {
+                        'id': 'jp-hiragana',
+                        'lesson_type': 'alphabet',
+                        'title': 'Hiragana foundations',
+                        'description': 'Master the full hiragana chart, stroke order, and the first 46 sounds before moving to words.',
+                        'duration_minutes': 18,
+                        'difficulty': skill_level,
+                    },
+                    {
+                        'id': 'jp-katakana',
+                        'lesson_type': 'alphabet',
+                        'title': 'Katakana survival kit',
+                        'description': 'Learn katakana for loanwords, menus, and common beginner reading tasks.',
+                        'duration_minutes': 18,
+                        'difficulty': skill_level,
+                    },
+                    {
+                        'id': 'jp-greetings',
+                        'lesson_type': 'vocabulary',
+                        'title': 'Daily greetings and self-introduction',
+                        'description': 'Build your first conversation set: greetings, name, nationality, and polite responses.',
+                        'duration_minutes': 14,
+                        'difficulty': skill_level,
+                    },
+                    {
+                        'id': 'jp-particles',
+                        'lesson_type': 'grammar',
+                        'title': 'Particles starter pack',
+                        'description': 'Understand は, が, を, に, and で through short sentence patterns and translation drills.',
+                        'duration_minutes': 16,
+                        'difficulty': skill_level,
+                    },
+                    {
+                        'id': 'jp-verbs',
+                        'lesson_type': 'grammar',
+                        'title': 'Polite verb patterns',
+                        'description': 'Practice です, ます, ません, and common daily verbs with beginner conjugation reps.',
+                        'duration_minutes': 15,
+                        'difficulty': skill_level,
+                    },
+                    {
+                        'id': 'jp-listening',
+                        'lesson_type': 'listening',
+                        'title': 'Slow Japanese listening loop',
+                        'description': 'Shadow beginner dialogues and train your ear with repeat-after-audio comprehension checks.',
+                        'duration_minutes': 12,
+                        'difficulty': skill_level,
+                    },
+                    {
+                        'id': 'jp-speaking',
+                        'lesson_type': 'speaking',
+                        'title': 'Pronunciation and shadowing',
+                        'description': 'Use Whisper-style speaking checks to practice pitch, rhythm, and clear mora timing.',
+                        'duration_minutes': 12,
+                        'difficulty': skill_level,
+                    },
+                    {
+                        'id': 'jp-kanji',
+                        'lesson_type': 'kanji',
+                        'title': 'First kanji set',
+                        'description': 'Start with numbers, days, people, and common nouns so reading practice becomes less intimidating.',
+                        'duration_minutes': 14,
+                        'difficulty': skill_level,
+                    },
+                ],
+                'roadmap': [
+                    {'day': 'Day 1', 'title': 'Hiragana and sounds', 'objective': 'Finish the base hiragana chart and read simple syllables without romaji.'},
+                    {'day': 'Day 2', 'title': 'Katakana and loanwords', 'objective': 'Read common katakana words and spot familiar English-origin vocabulary.'},
+                    {'day': 'Day 3', 'title': 'Greetings and self-introduction', 'objective': 'Say your name, nationality, and basic greetings in polite Japanese.'},
+                    {'day': 'Day 4', 'title': 'Particles and sentence order', 'objective': 'Build short sentences using は, を, and に with confidence.'},
+                    {'day': 'Day 5', 'title': 'Polite verbs', 'objective': 'Use です and ます forms for everyday statements and questions.'},
+                    {'day': 'Day 6', 'title': 'Listening and shadowing', 'objective': 'Repeat short dialogues and understand key phrases without pausing every line.'},
+                    {'day': 'Day 7', 'title': 'Kanji and review', 'objective': 'Learn the first kanji pack and review the full week with a quiz and flashcards.'},
+                ],
+                'survival_pack': [
+                    'こんにちは - hello',
+                    'ありがとうございます - thank you',
+                    'すみません - excuse me / sorry',
+                    'はい / いいえ - yes / no',
+                    'わたしは ... です - I am ...',
+                    'これはなんですか - what is this?',
+                    'もういちどおねがいします - please say it again',
+                    'わかりません - I do not understand',
+                ],
+                'resource_links': [
+                    {
+                        'source': 'NHK World',
+                        'title': 'Easy Japanese',
+                        'description': 'Structured beginner dialogues, audio, and phrase lessons from NHK.',
+                        'url': 'https://www.nhk.or.jp/lesson/en/',
+                    },
+                    {
+                        'source': 'Tae Kim',
+                        'title': 'Guide to Japanese',
+                        'description': 'A free grammar guide that starts from kana and builds beginner sentence patterns.',
+                        'url': 'https://guidetojapanese.org/learn/',
+                    },
+                    {
+                        'source': 'Tofugu',
+                        'title': 'Learn Hiragana',
+                        'description': 'Detailed mnemonics and memorization approach for hiragana.',
+                        'url': 'https://www.tofugu.com/japanese/learn-hiragana/',
+                    },
+                    {
+                        'source': 'Tofugu',
+                        'title': 'Learn Katakana',
+                        'description': 'Beginner-friendly katakana guide with mnemonics and practice.',
+                        'url': 'https://www.tofugu.com/japanese/learn-katakana/',
+                    },
+                    {
+                        'source': 'Jisho',
+                        'title': 'Japanese Dictionary',
+                        'description': 'Search vocabulary, kanji, example sentences, and stroke order details.',
+                        'url': 'https://jisho.org/',
+                    },
+                    {
+                        'source': 'Wasabi',
+                        'title': 'Japanese Grammar Reference',
+                        'description': 'Clear grammar references and example sentences for beginners.',
+                        'url': 'https://www.wasabi-jpn.com/japanese-grammar/',
+                    },
+                    {
+                        'source': "Erin's Challenge",
+                        'title': 'Conversation lessons',
+                        'description': 'Video-based Japanese conversation and cultural context for beginners.',
+                        'url': 'https://www.erin.jpf.go.jp/en/',
+                    },
+                    {
+                        'source': 'Marugoto',
+                        'title': 'Starter learning portal',
+                        'description': 'Japanese Foundation beginner learning portal with course guidance and self-study support.',
+                        'url': 'https://www.marugoto-online.jp/info/',
+                    },
+                ],
+            }
+
         lessons = [
             {
                 'id': 'vocab-core',
@@ -345,7 +486,7 @@ class LearningProfileService:
                 'difficulty': skill_level,
             },
         ]
-        return {'language': language, 'skill_level': skill_level, 'lessons': lessons}
+        return {'language': language, 'skill_level': skill_level, 'lessons': lessons, 'roadmap': [], 'survival_pack': [], 'resource_links': []}
 
     def require_profile(self, user_id: str) -> dict:
         profile = self.get_profile(user_id)

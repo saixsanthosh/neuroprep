@@ -115,7 +115,7 @@ export function PlannerPage() {
   }
 
   return (
-    <div className="relative min-h-screen space-y-6 pb-6">
+    <div className="relative min-h-screen space-y-4 pb-4 sm:space-y-6 sm:pb-6">
       <FloatingShapes />
       <AnimatedGradientOrb
         className="-right-20 top-10"
@@ -134,7 +134,7 @@ export function PlannerPage() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45 }}
-        className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.14),transparent_24%),radial-gradient(circle_at_78%_16%,rgba(124,58,237,0.2),transparent_28%),linear-gradient(150deg,rgba(7,11,26,0.95),rgba(11,20,46,0.9))] p-6 shadow-[0_30px_80px_rgba(4,8,24,0.45)] backdrop-blur-2xl sm:p-8"
+        className="relative overflow-hidden rounded-[1.5rem] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.14),transparent_24%),radial-gradient(circle_at_78%_16%,rgba(124,58,237,0.2),transparent_28%),linear-gradient(150deg,rgba(7,11,26,0.95),rgba(11,20,46,0.9))] p-4 shadow-[0_30px_80px_rgba(4,8,24,0.45)] backdrop-blur-2xl sm:rounded-[2rem] sm:p-6 lg:p-8"
       >
         <div className="premium-grid absolute inset-0 opacity-20" />
         <div className="pointer-events-none absolute -left-8 top-10 h-40 w-40 rounded-full bg-cyan-400/12 blur-3xl" />
@@ -206,7 +206,7 @@ export function PlannerPage() {
         </div>
       </motion.section>
 
-      <div className="grid gap-4 xl:grid-cols-[1fr_380px]">
+      <div className="grid gap-3 sm:gap-4 xl:grid-cols-[1fr_340px]">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

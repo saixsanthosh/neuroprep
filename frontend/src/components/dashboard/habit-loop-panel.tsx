@@ -121,7 +121,7 @@ function LeaderboardList({ entries }: { entries: HabitLeaderboardEntry[] }) {
                 #{entry.rank} {entry.username}
               </p>
               <p className="mt-1 text-xs text-slate-400">
-                Level {entry.level} • {entry.streak} day streak
+                Level {entry.level} | {entry.streak} day streak
               </p>
             </div>
             <span className="text-sm font-semibold text-cyan-200">{entry.xp} XP</span>
@@ -313,3 +313,4 @@ export function HabitLoopPanel() {
     </Card>
   )
 }
+

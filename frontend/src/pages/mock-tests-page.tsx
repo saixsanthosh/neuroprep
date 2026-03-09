@@ -42,12 +42,6 @@ const exams = [
   },
 ]
 
-const recentResults = [
-  { exam: 'JEE Full-Length', score: 184, total: 300, rank: 321, accuracy: 72, date: '2 days ago' },
-  { exam: 'NEET Biology Intensive', score: 521, total: 720, rank: 188, accuracy: 85, date: '5 days ago' },
-  { exam: 'College Midterm Sim', score: 78, total: 100, rank: 42, accuracy: 78, date: '1 week ago' },
-]
-
 type MockQuestion = {
   id: string
   prompt: string
@@ -173,13 +167,18 @@ export function MockTestsPage() {
   const [answers, setAnswers] = useState<Record<string, number>>({})
   const [flaggedQuestions, setFlaggedQuestions] = useState<Record<string, boolean>>({})
   const [secondsLeft, setSecondsLeft] = useState(0)
-  const [recentResultItems, setRecentResultItems] = useState(recentResults)
+  const [recentResultItems, setRecentResultItems] = useState<Array<{ exam: string; score: number; total: number; rank: number; accuracy: number; date: string }>>([])
   const [resultSummary, setResultSummary] = useState<ResultSummary | null>(null)
   const [loadingResults, setLoadingResults] = useState(true)
 
   const activeExam = useMemo(() => exams.find((exam) => exam.id === runningExamId) ?? null, [runningExamId])
   const activeQuestions = runningExamId ? examQuestions[runningExamId] ?? [] : []
   const activeQuestion = activeQuestions[currentQuestionIndex]
+  const averageAccuracy = recentResultItems.length
+    ? Math.round(recentResultItems.reduce((sum, result) => sum + result.accuracy, 0) / recentResultItems.length)
+    : 0
+  const bestRank = recentResultItems.length ? Math.min(...recentResultItems.map((result) => result.rank)) : 0
+  const bestScore = recentResultItems.length ? Math.max(...recentResultItems.map((result) => result.score)) : 0
 
   useEffect(() => {
     let active = true
@@ -187,19 +186,20 @@ export function MockTestsPage() {
     const loadResults = async () => {
       try {
         const results = await getMockResults(5)
-        if (!active || !results.length) return
+        if (!active) return
         setRecentResultItems(
           results.map((result: MockResult) => ({
             exam: result.exam_type,
             score: Math.round(result.score),
-            total: 100,
+            total: result.exam_type.includes('NEET') ? 720 : result.exam_type.includes('UPSC') ? 240 : 300,
             rank: result.rank,
             accuracy: Math.round(result.accuracy),
             date: new Date(result.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
           })),
         )
       } catch {
-        // Keep seeded mock results when the live call is unavailable.
+        if (!active) return
+        setRecentResultItems([])
       } finally {
         if (active) setLoadingResults(false)
       }
@@ -376,14 +376,14 @@ export function MockTestsPage() {
             transition={{ delay: 0.4 }}
           >
             {[
-              { label: 'Tests Taken', value: recentResultItems.length || 1, icon: Trophy },
+              { label: 'Tests Taken', value: recentResultItems.length, icon: Trophy },
               {
                 label: 'Avg Accuracy',
-                value: `${Math.round(recentResultItems.reduce((sum, result) => sum + result.accuracy, 0) / recentResultItems.length)}%`,
+                value: `${averageAccuracy}%`,
                 icon: Target,
               },
-              { label: 'Best Rank', value: Math.min(...recentResultItems.map((result) => result.rank)), icon: Award },
-              { label: 'Study Hours', value: 156, icon: Clock },
+              { label: 'Best Rank', value: bestRank || '-', icon: Award },
+              { label: 'Best Score', value: bestScore, icon: Clock },
             ].map((stat, index) => (
               <motion.div
                 key={stat.label}
@@ -418,7 +418,7 @@ export function MockTestsPage() {
                 <div className="flex-1">
                   <CardTitle className="text-white">{exam.title}</CardTitle>
                   <CardDescription className="mt-2 text-slate-400">
-                    {exam.questions} questions • {exam.duration}
+                    {exam.questions} questions | {exam.duration}
                   </CardDescription>
                 </div>
                 <span className={`rounded-full bg-gradient-to-br ${exam.color} px-3 py-1 text-xs font-medium text-white`}>
@@ -480,7 +480,7 @@ export function MockTestsPage() {
               <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4 text-sm text-slate-400">
                 Loading stored mock results...
               </div>
-            ) : recentResultItems.map((result, index) => (
+            ) : recentResultItems.length ? recentResultItems.map((result, index) => (
               <motion.div
                 key={result.exam}
                 initial={{ opacity: 0, x: -10 }}
@@ -511,7 +511,11 @@ export function MockTestsPage() {
                   </div>
                 </div>
               </motion.div>
-            ))}
+            )) : (
+              <div className="rounded-[1.5rem] border border-dashed border-white/10 bg-white/5 p-4 text-sm text-slate-400">
+                No mock results yet. Start an exam from this page and your real results will appear here.
+              </div>
+            )}
           </div>
         </GlowingCard>
       </motion.div>
@@ -599,7 +603,7 @@ export function MockTestsPage() {
                   <div>
                     <p className="text-xs uppercase tracking-[0.18em] text-cyan-300">Live Exam Session</p>
                     <h2 className="mt-2 text-2xl font-black text-white">{activeExam.title}</h2>
-                    <p className="mt-2 text-sm text-slate-400">Session {sessionId ?? 'starting'} · Topic {activeQuestion.topic}</p>
+                    <p className="mt-2 text-sm text-slate-400">Session {sessionId ?? 'starting'} | Topic {activeQuestion.topic}</p>
                   </div>
                   <div className="rounded-[1.4rem] border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-right">
                     <p className="text-xs uppercase tracking-[0.18em] text-rose-200">Time Left</p>
@@ -806,3 +810,5 @@ export function MockTestsPage() {
     </div>
   )
 }
+
+

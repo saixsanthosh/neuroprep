@@ -7,7 +7,7 @@ interface StreakWidgetProps {
   longest?: number
 }
 
-export function StreakWidget({ streak, longest = 28 }: StreakWidgetProps) {
+export function StreakWidget({ streak, longest = 0 }: StreakWidgetProps) {
   return (
     <GlowingCard glowColor="amber" className="h-full">
       <div className="flex items-start justify-between">
@@ -31,3 +31,4 @@ export function StreakWidget({ streak, longest = 28 }: StreakWidgetProps) {
     </GlowingCard>
   )
 }
+

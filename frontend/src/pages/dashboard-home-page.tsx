@@ -16,7 +16,17 @@ import { HabitLoopPanel } from '../components/dashboard/habit-loop-panel'
 import { PersonalizedStudyPanels } from '../components/dashboard/personalized-study-panels'
 import { useAuth } from '../contexts/auth-context'
 import { useLearningProfile } from '../contexts/learning-profile-context'
-import { getGamificationSummary, getWeeklyReport, type GamificationSummary } from '../lib/api'
+import {
+  getAnalyticsPerformance,
+  getAnalyticsStudyHours,
+  getGamificationSummary,
+  getStudyStats,
+  getWeeklyReport,
+  type GamificationSummary,
+  type PerformanceResponse,
+  type StudyHoursResponse,
+  type StudyStatsResponse,
+} from '../lib/api'
 import { StatCard } from '../components/dashboard/stat-card'
 import { Badge } from '../components/ui/badge'
 import { Card, CardDescription, CardTitle } from '../components/ui/card'
@@ -76,6 +86,9 @@ export function DashboardHomePage() {
   const [weeklyReport, setWeeklyReport] = useState('Loading your weekly AI report...')
   const [focusSubjects, setFocusSubjects] = useState<string[]>([])
   const [gamification, setGamification] = useState<GamificationSummary | null>(null)
+  const [studyHours, setStudyHours] = useState<StudyHoursResponse | null>(null)
+  const [performance, setPerformance] = useState<PerformanceResponse | null>(null)
+  const [studyStats, setStudyStats] = useState<StudyStatsResponse | null>(null)
 
   const quickActions = (dashboard?.modules ?? []).slice(0, 3).map((module, index) => ({
     label: module.title,
@@ -124,12 +137,20 @@ export function DashboardHomePage() {
                 ? 'from-emerald-400 to-teal-500'
                 : 'from-amber-400 to-orange-500',
       }))
-    : [
-        { name: 'Core mastery', progress: 82, tone: 'from-cyan-400 to-sky-500' },
-        { name: 'Revision memory', progress: 75, tone: 'from-violet-500 to-fuchsia-500' },
-        { name: 'Practice depth', progress: 90, tone: 'from-emerald-400 to-teal-500' },
-        { name: 'Recovery speed', progress: 68, tone: 'from-amber-400 to-orange-500' },
-      ]
+    : (profile?.subjects.length
+        ? profile.subjects.slice(0, 4).map((subject, index) => ({
+            name: subject,
+            progress: 0,
+            tone:
+              index % 4 === 0
+                ? 'from-cyan-400 to-sky-500'
+                : index % 4 === 1
+                  ? 'from-violet-500 to-fuchsia-500'
+                  : index % 4 === 2
+                    ? 'from-emerald-400 to-teal-500'
+                    : 'from-amber-400 to-orange-500',
+          }))
+        : [{ name: 'No tracked subjects yet', progress: 0, tone: 'from-cyan-400 to-sky-500' }])
 
   useEffect(() => {
     let active = true
@@ -148,6 +169,34 @@ export function DashboardHomePage() {
     }
 
     void loadWeeklyReport()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    let active = true
+
+    const loadAnalytics = async () => {
+      try {
+        const [hoursData, performanceData, statsData] = await Promise.all([
+          getAnalyticsStudyHours(),
+          getAnalyticsPerformance(),
+          getStudyStats(),
+        ])
+        if (!active) return
+        setStudyHours(hoursData)
+        setPerformance(performanceData)
+        setStudyStats(statsData)
+      } catch {
+        if (!active) return
+        setStudyHours(null)
+        setPerformance(null)
+        setStudyStats(null)
+      }
+    }
+
+    void loadAnalytics()
     return () => {
       active = false
     }
@@ -188,11 +237,11 @@ export function DashboardHomePage() {
         variants={containerVariants}
         initial="hidden"
         animate="show"
-        className="relative z-10 space-y-6 pb-8"
+        className="relative z-10 space-y-4 pb-6 sm:space-y-6 sm:pb-8"
       >
       <motion.section
         variants={itemVariants}
-        className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.16),transparent_28%),radial-gradient(circle_at_80%_15%,rgba(124,58,237,0.22),transparent_30%),linear-gradient(145deg,rgba(7,11,26,0.94),rgba(13,20,48,0.88))] p-6 shadow-[0_30px_80px_rgba(4,8,24,0.45)] sm:p-8"
+        className="relative overflow-hidden rounded-[1.5rem] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.16),transparent_28%),radial-gradient(circle_at_80%_15%,rgba(124,58,237,0.22),transparent_30%),linear-gradient(145deg,rgba(7,11,26,0.94),rgba(13,20,48,0.88))] p-4 shadow-[0_30px_80px_rgba(4,8,24,0.45)] sm:rounded-[2rem] sm:p-6 lg:p-8"
       >
         <div className="pointer-events-none absolute inset-0 opacity-70">
           <div className="absolute -left-16 top-12 h-36 w-36 rounded-full bg-cyan-400/10 blur-3xl" />
@@ -253,8 +302,10 @@ export function DashboardHomePage() {
             </div>
             <div className="rounded-[1.5rem] border border-white/10 bg-black/20 p-5 backdrop-blur-2xl">
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400">AI signal</p>
-              <p className="mt-3 text-3xl font-bold text-white">{companionBrief?.readiness_score ?? 92}%</p>
-              <p className="mt-2 text-sm text-slate-400">{companionBrief?.strategy_tip ?? 'Readiness prediction indicates strong mock performance today.'}</p>
+              <p className="mt-3 text-3xl font-bold text-white">{companionBrief?.readiness_score ?? 0}%</p>
+              <p className="mt-2 text-sm text-slate-400">
+                {companionBrief?.strategy_tip ?? 'Complete quizzes or mocks to generate a readiness prediction.'}
+              </p>
             </div>
             <div className="rounded-[1.5rem] border border-white/10 bg-black/20 p-5 backdrop-blur-2xl">
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Voice stack</p>
@@ -284,7 +335,7 @@ export function DashboardHomePage() {
             </Badge>
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+          <div className="grid gap-4 sm:gap-6 xl:grid-cols-[1.2fr_0.8fr]">
             <div className="rounded-[1.6rem] border border-white/10 bg-white/5 p-5 text-sm leading-7 text-slate-300">
               {weeklyReport}
             </div>
@@ -320,13 +371,13 @@ export function DashboardHomePage() {
       </motion.div>
 
       <motion.div variants={itemVariants} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Study Hours" value={profile?.study_hours ?? 6} suffix="h" icon={BookOpenCheck} delay={0.05} />
+        <StatCard label="Study Hours" value={studyStats?.today_hours ?? 0} suffix="h" icon={BookOpenCheck} delay={0.05} />
         <StatCard label="Study Streak" value={gamification?.profile.current_streak ?? 0} suffix=" days" icon={Flame} delay={0.1} />
-        <StatCard label="Productivity Score" value={companionBrief?.readiness_score ?? 87} suffix="%" icon={TimerReset} delay={0.15} />
+        <StatCard label="Productivity Score" value={studyStats?.productivity_score ?? 0} suffix="%" icon={TimerReset} delay={0.15} />
         <StatCard label="Tasks Today" value={tasks.length} icon={ListTodo} delay={0.2} />
       </motion.div>
 
-      <div className="grid gap-4 xl:grid-cols-[1.45fr_0.95fr]">
+      <div className="grid gap-3 sm:gap-4 xl:grid-cols-[1.45fr_0.95fr]">
         <motion.div variants={itemVariants}>
           <Card className="glass-panel overflow-hidden p-6">
             <div className="mb-5 flex items-start justify-between gap-4">
@@ -341,7 +392,7 @@ export function DashboardHomePage() {
               </span>
             </div>
             <Suspense fallback={<Skeleton className="h-72 w-full rounded-3xl bg-white/5" />}>
-              <WeeklyStudyHoursChart />
+              <WeeklyStudyHoursChart points={studyHours?.daily ?? []} />
             </Suspense>
           </Card>
         </motion.div>
@@ -394,7 +445,7 @@ export function DashboardHomePage() {
         </motion.div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid gap-3 sm:gap-4 xl:grid-cols-2">
         <motion.div variants={itemVariants}>
           <Card className="glass-panel h-full p-6">
             <CardTitle className="text-xl text-white">Subject Performance</CardTitle>
@@ -403,7 +454,7 @@ export function DashboardHomePage() {
             </CardDescription>
             <div className="mt-5">
               <Suspense fallback={<Skeleton className="h-72 w-full rounded-3xl bg-white/5" />}>
-                <SubjectPerformanceBarChart />
+                <SubjectPerformanceBarChart series={performance?.subject_performance ?? []} />
               </Suspense>
             </div>
           </Card>
@@ -417,14 +468,14 @@ export function DashboardHomePage() {
             </CardDescription>
             <div className="mt-5">
               <Suspense fallback={<Skeleton className="h-72 w-full rounded-3xl bg-white/5" />}>
-                <MonthlyHeatmapChart />
+                <MonthlyHeatmapChart points={studyHours?.monthly_daily ?? []} />
               </Suspense>
             </div>
           </Card>
         </motion.div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
+      <div className="grid gap-3 sm:gap-4 xl:grid-cols-[1fr_1fr]">
         <motion.div variants={itemVariants}>
           <Card className="glass-panel h-full p-6">
             <CardTitle className="text-xl text-white">Recent AI Signals</CardTitle>
@@ -456,7 +507,7 @@ export function DashboardHomePage() {
             </CardDescription>
             <div className="mt-5">
               <Suspense fallback={<Skeleton className="h-72 w-full rounded-3xl bg-white/5" />}>
-                <AccuracyTrendChart />
+                <AccuracyTrendChart series={performance?.accuracy_trend ?? []} />
               </Suspense>
             </div>
           </Card>

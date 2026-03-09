@@ -129,7 +129,7 @@ export function PersonalizedStudyPanels() {
             {isLoading ? (
               <Skeleton className="h-48 w-full rounded-[1.6rem] bg-white/5" />
             ) : resources.length > 0 ? (
-              resources.slice(0, 4).map((resource) => (
+              resources.slice(0, profile?.goal_type === 'language_learning' ? 6 : 4).map((resource) => (
                 <a
                   key={`${resource.source}-${resource.url}`}
                   href={resource.url}
@@ -175,7 +175,7 @@ export function PersonalizedStudyPanels() {
             </div>
             <Badge className="gap-2 border-white/15 bg-white/10 text-white">
               <Languages className="h-3.5 w-3.5 text-cyan-300" />
-              {languagePath.language} • {languagePath.skill_level}
+              {languagePath.language} | {languagePath.skill_level}
             </Badge>
           </div>
 
@@ -222,6 +222,59 @@ export function PersonalizedStudyPanels() {
               </div>
             </div>
           </div>
+
+          {languagePath.survival_pack.length ? (
+            <div className="mt-4 grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
+              <div className="rounded-[1.6rem] border border-white/10 bg-white/5 p-5">
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Beginner survival pack</p>
+                <div className="mt-4 space-y-2">
+                  {languagePath.survival_pack.map((phrase) => (
+                    <div key={phrase} className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-slate-200">
+                      {phrase}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-[1.6rem] border border-white/10 bg-white/5 p-5">
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">7-day roadmap</p>
+                <div className="mt-4 space-y-3">
+                  {languagePath.roadmap.map((step) => (
+                    <div key={step.day} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-white">{step.day}</p>
+                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-cyan-200">
+                          {step.title}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm leading-6 text-slate-400">{step.objective}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {languagePath.resource_links.length ? (
+            <div className="mt-4 rounded-[1.6rem] border border-white/10 bg-white/5 p-5">
+              <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Beginner resource stack</p>
+              <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                {languagePath.resource_links.map((resource) => (
+                  <a
+                    key={resource.url}
+                    href={resource.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-[1.3rem] border border-white/10 bg-black/20 p-4 transition-all duration-300 hover:-translate-y-1 hover:border-white/20 hover:bg-white/10"
+                  >
+                    <p className="text-xs uppercase tracking-[0.18em] text-cyan-300">{resource.source}</p>
+                    <p className="mt-3 text-sm font-semibold text-white">{resource.title}</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-400">{resource.description}</p>
+                  </a>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </Card>
       )}
 
@@ -243,3 +296,4 @@ export function PersonalizedStudyPanels() {
     </div>
   )
 }
+

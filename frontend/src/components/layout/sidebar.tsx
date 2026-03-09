@@ -45,7 +45,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
   return (
     <motion.aside
-      animate={{ width: collapsed ? 94 : 286 }}
+      animate={{ width: collapsed ? 94 : 280 }}
       transition={{ duration: 0.3, ease: 'easeInOut' }}
       className="glass-panel sticky top-4 flex h-[calc(100vh-2rem)] flex-col overflow-hidden p-4"
     >

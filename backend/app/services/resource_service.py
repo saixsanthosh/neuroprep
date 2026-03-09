@@ -51,6 +51,66 @@ class ResourceService:
         encoded = quote_plus(query)
         query_wiki = quote_plus(query.replace(' ', '_'))
         goal = profile.get('goal_type')
+        if goal == 'language_learning' and (profile.get('language') or '').lower() == 'japanese':
+            return [
+                {
+                    'source': 'NHK World',
+                    'title': 'Easy Japanese',
+                    'description': 'Audio-led beginner dialogues, phrase lessons, and survival expressions.',
+                    'url': 'https://www.nhk.or.jp/lesson/en/',
+                    'category': 'lesson',
+                },
+                {
+                    'source': 'Tae Kim',
+                    'title': 'Guide to Japanese',
+                    'description': 'A free grammar-first path that starts at beginner level and grows into real sentence patterns.',
+                    'url': 'https://guidetojapanese.org/learn/',
+                    'category': 'reference',
+                },
+                {
+                    'source': 'Tofugu',
+                    'title': 'Learn Hiragana',
+                    'description': 'Mnemonic-based hiragana study path for absolute beginners.',
+                    'url': 'https://www.tofugu.com/japanese/learn-hiragana/',
+                    'category': 'lesson',
+                },
+                {
+                    'source': 'Tofugu',
+                    'title': 'Learn Katakana',
+                    'description': 'Katakana training so beginners can read loanwords and beginner vocabulary lists.',
+                    'url': 'https://www.tofugu.com/japanese/learn-katakana/',
+                    'category': 'lesson',
+                },
+                {
+                    'source': 'Jisho',
+                    'title': 'Japanese dictionary and kanji lookup',
+                    'description': 'Look up words, kanji, pitch, particles, and example sentences while studying.',
+                    'url': 'https://jisho.org/',
+                    'category': 'reference',
+                },
+                {
+                    'source': 'Wasabi',
+                    'title': 'Japanese grammar references',
+                    'description': 'Beginner-friendly grammar explanations with example sentences and practice hooks.',
+                    'url': 'https://www.wasabi-jpn.com/japanese-grammar/',
+                    'category': 'courseware',
+                },
+                {
+                    'source': "Erin's Challenge",
+                    'title': 'Conversation videos',
+                    'description': 'Listen to real beginner conversations and practice situational Japanese.',
+                    'url': 'https://www.erin.jpf.go.jp/en/',
+                    'category': 'courseware',
+                },
+                {
+                    'source': 'Wikipedia',
+                    'title': 'Japanese language primer',
+                    'description': 'A quick overview of writing systems, structure, and key concepts before deep study.',
+                    'url': 'https://en.wikipedia.org/wiki/Japanese_language',
+                    'category': 'reference',
+                },
+            ]
+
         resources = [
             {
                 'source': 'Khan Academy',

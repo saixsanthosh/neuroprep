@@ -547,7 +547,26 @@ class GamificationService:
 
     def _list_rows(self, table_name: str, *, predicate=None, order_by: str | None = None, desc: bool = False, limit: int | None = None) -> list[dict]:
         if self.demo_mode:
-            return list_rows(table_name, predicate=predicate, order_by=order_by, desc=desc, limit=limit)
+            rows = list_rows(table_name, predicate=predicate)
+            if order_by:
+                def sort_value(row: dict):
+                    value = row.get(order_by)
+                    if value is None:
+                        return (2, '')
+                    if isinstance(value, bool):
+                        return (0, float(int(value)))
+                    if isinstance(value, (int, float)):
+                        return (0, float(value))
+                    text = str(value)
+                    try:
+                        return (0, float(text))
+                    except ValueError:
+                        return (1, text)
+
+                rows.sort(key=sort_value, reverse=desc)
+            if limit is not None:
+                rows = rows[:limit]
+            return rows
         query = self.client.table(table_name).select('*')
         if order_by:
             query = query.order(order_by, desc=desc)

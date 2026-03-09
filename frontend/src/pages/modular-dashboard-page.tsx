@@ -3,7 +3,14 @@ import { motion } from 'framer-motion'
 import { LayoutGrid, Rows3, Settings } from 'lucide-react'
 
 import { useLearningProfile } from '../contexts/learning-profile-context'
-import { getGamificationSummary, type GamificationSummary } from '../lib/api'
+import {
+  getAnalyticsStudyHours,
+  getGamificationSummary,
+  getStudyStats,
+  type GamificationSummary,
+  type StudyHoursResponse,
+  type StudyStatsResponse,
+} from '../lib/api'
 import { ParticlesBackground } from '../components/ui/particles-background'
 import { FloatingShapes } from '../components/ui/floating-shapes'
 import { AnimatedGradientOrb } from '../components/ui/animated-gradient-orb'
@@ -46,6 +53,8 @@ export function ModularDashboardPage() {
   const { profile, dashboard, companionBrief } = useLearningProfile()
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(() => readLayoutMode())
   const [gamification, setGamification] = useState<GamificationSummary | null>(null)
+  const [studyHours, setStudyHours] = useState<StudyHoursResponse | null>(null)
+  const [studyStats, setStudyStats] = useState<StudyStatsResponse | null>(null)
 
   useEffect(() => {
     let active = true
@@ -64,6 +73,50 @@ export function ModularDashboardPage() {
     }
 
     void loadGamification()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    let active = true
+
+    const loadStudyStats = async () => {
+      try {
+        const data = await getStudyStats()
+        if (active) {
+          setStudyStats(data)
+        }
+      } catch {
+        if (active) {
+          setStudyStats(null)
+        }
+      }
+    }
+
+    void loadStudyStats()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    let active = true
+
+    const loadStudyHours = async () => {
+      try {
+        const data = await getAnalyticsStudyHours()
+        if (active) {
+          setStudyHours(data)
+        }
+      } catch {
+        if (active) {
+          setStudyHours(null)
+        }
+      }
+    }
+
+    void loadStudyHours()
     return () => {
       active = false
     }
@@ -134,11 +187,11 @@ export function ModularDashboardPage() {
   const goals = useMemo(() => {
     const xp = gamification?.profile.xp ?? 0
     return [
-      { title: 'Study Hours', current: profile?.study_hours ?? 0, target: Math.max(profile?.study_hours ?? 0, 6), unit: 'hrs' },
+      { title: 'Study Hours', current: studyStats?.weekly_hours ?? 0, target: Math.max(profile?.study_hours ?? 0, 6), unit: 'hrs' },
       { title: 'Quizzes', current: gamification?.profile.quizzes_completed ?? 0, target: 5, unit: 'quizzes' },
       { title: 'Questions', current: gamification?.profile.questions_solved ?? 0, target: Math.max(25, Math.ceil((xp + 1) / 10)), unit: 'qs' },
     ]
-  }, [gamification?.profile.questions_solved, gamification?.profile.quizzes_completed, gamification?.profile.xp, profile?.study_hours])
+  }, [gamification?.profile.questions_solved, gamification?.profile.quizzes_completed, gamification?.profile.xp, profile?.study_hours, studyStats?.weekly_hours])
 
   const level = gamification?.profile.level ?? 1
   const totalXp = gamification?.profile.xp ?? 0
@@ -148,8 +201,8 @@ export function ModularDashboardPage() {
 
   const sectionClassName =
     layoutMode === 'dense'
-      ? 'grid gap-4 xl:grid-cols-12'
-      : 'grid gap-6 xl:grid-cols-12'
+      ? 'grid gap-3 sm:gap-4 xl:grid-cols-12'
+      : 'grid gap-4 sm:gap-6 xl:grid-cols-12'
 
   const setMode = (nextMode: LayoutMode) => {
     setLayoutMode(nextMode)
@@ -157,7 +210,7 @@ export function ModularDashboardPage() {
   }
 
   return (
-    <div className="relative min-h-screen pb-8">
+    <div className="relative min-h-screen pb-6 sm:pb-8">
       <ParticlesBackground />
       <FloatingShapes />
       <AnimatedGradientOrb color="cyan" size="lg" top="5%" left="5%" />
@@ -168,7 +221,7 @@ export function ModularDashboardPage() {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-6 flex flex-wrap items-center justify-between gap-4"
+          className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-6 sm:gap-4"
         >
           <div>
             <h1 className="text-gradient text-3xl font-black sm:text-4xl">Modular Dashboard</h1>
@@ -195,7 +248,7 @@ export function ModularDashboardPage() {
 
         <div className={sectionClassName}>
           <div className="xl:col-span-3">
-            <StudyHoursWidget hours={profile?.study_hours ?? 0} trend={Math.max(0, Math.round((companionBrief?.readiness_score ?? 0) / 8))} />
+            <StudyHoursWidget hours={studyStats?.today_hours ?? 0} trend={Math.max(0, Math.round((studyStats?.productivity_score ?? 0) / 8))} />
           </div>
           <div className="xl:col-span-3">
             <StreakWidget streak={gamification?.profile.current_streak ?? 0} longest={gamification?.profile.longest_streak ?? 0} />
@@ -214,7 +267,7 @@ export function ModularDashboardPage() {
           </div>
 
           <div className="xl:col-span-7">
-            <WeeklyChartWidget />
+            <WeeklyChartWidget points={studyHours?.daily ?? []} />
           </div>
           <div className="xl:col-span-5">
             <TasksWidget tasks={tasks} />
@@ -226,10 +279,10 @@ export function ModularDashboardPage() {
           <div className="xl:col-span-4">
             <DailySummaryWidget
               date={`Today, ${todayLabel()}`}
-              studyTime={profile?.study_hours ?? 0}
+              studyTime={studyStats?.today_hours ?? 0}
               tasksCompleted={tasks.filter((task) => task.completed).length}
               totalTasks={tasks.length}
-              focusScore={companionBrief?.readiness_score ?? 0}
+              focusScore={studyStats?.productivity_score ?? 0}
             />
           </div>
           <div className="xl:col-span-4">

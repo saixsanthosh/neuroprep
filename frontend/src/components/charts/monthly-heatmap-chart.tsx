@@ -1,35 +1,11 @@
 import { Bar } from 'react-chartjs-2'
 import type { ScriptableContext, TooltipItem } from 'chart.js'
 
+import type { StudyHoursPoint } from '../../lib/api'
+import { ChartEmptyState } from './chart-empty-state'
 import { ensureChartRegistration } from './chart-setup'
 
 ensureChartRegistration()
-
-const labels = Array.from({ length: 30 }, (_, index) => `D${index + 1}`)
-const values = [
-  2, 1, 3, 4, 0, 2, 5, 3, 1, 4,
-  2, 0, 1, 3, 4, 2, 5, 3, 2, 1,
-  4, 5, 2, 3, 1, 0, 4, 2, 3, 5,
-]
-
-const data = {
-  labels,
-  datasets: [
-    {
-      label: 'Study Intensity',
-      data: values,
-      borderRadius: 6,
-      backgroundColor: (context: ScriptableContext<'bar'>) => {
-        const value = Number(context.raw ?? 0)
-        if (value <= 1) return 'rgba(34, 211, 238, 0.15)'
-        if (value <= 2) return 'rgba(56, 189, 248, 0.35)'
-        if (value <= 3) return 'rgba(99, 102, 241, 0.45)'
-        if (value <= 4) return 'rgba(124, 58, 237, 0.62)'
-        return 'rgba(167, 139, 250, 0.85)'
-      },
-    },
-  ],
-}
 
 const options = {
   responsive: true,
@@ -65,7 +41,42 @@ const options = {
   },
 }
 
-export function MonthlyHeatmapChart() {
+function dayLabel(dateValue: string) {
+  const date = new Date(dateValue)
+  if (Number.isNaN(date.getTime())) return dateValue
+  return `D${date.getDate()}`
+}
+
+export function MonthlyHeatmapChart({ points = [] }: { points?: StudyHoursPoint[] }) {
+  const hasRealData = points.some((point) => point.hours > 0)
+  if (!points.length || !hasRealData) {
+    return (
+      <ChartEmptyState
+        title="No monthly study footprint yet"
+        message="Your daily study intensity will appear here after you log real study sessions."
+      />
+    )
+  }
+
+  const data = {
+    labels: points.map((point) => dayLabel(point.date)),
+    datasets: [
+      {
+        label: 'Study Intensity',
+        data: points.map((point) => point.hours),
+        borderRadius: 6,
+        backgroundColor: (context: ScriptableContext<'bar'>) => {
+          const value = Number(context.raw ?? 0)
+          if (value <= 0.5) return 'rgba(34, 211, 238, 0.15)'
+          if (value <= 1.5) return 'rgba(56, 189, 248, 0.35)'
+          if (value <= 3) return 'rgba(99, 102, 241, 0.45)'
+          if (value <= 5) return 'rgba(124, 58, 237, 0.62)'
+          return 'rgba(167, 139, 250, 0.85)'
+        },
+      },
+    ],
+  }
+
   return (
     <div className="h-72">
       <Bar options={options} data={data} />
