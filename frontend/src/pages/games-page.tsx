@@ -1,5 +1,5 @@
-import { ChessPage } from './chess-page'
+import { GamesHubPage } from './games-hub-page'
 
 export function GamesPage() {
-  return <ChessPage />
+  return <GamesHubPage />
 }

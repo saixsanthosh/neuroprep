@@ -30,6 +30,7 @@ const AnalyticsPage = lazy(() =>
 )
 const GamesPage = lazy(() => import('./pages/games-page').then((module) => ({ default: module.GamesPage })))
 const ChessPage = lazy(() => import('./pages/chess-page').then((module) => ({ default: module.ChessPage })))
+const WordBuilderPage = lazy(() => import('./pages/word-builder-page').then((module) => ({ default: module.WordBuilderPage })))
 const TimerPage = lazy(() => import('./pages/timer-page').then((module) => ({ default: module.TimerPage })))
 const SettingsPage = lazy(() =>
   import('./pages/settings-page').then((module) => ({ default: module.SettingsPage })),
@@ -89,6 +90,7 @@ function App() {
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="games" element={<GamesPage />} />
           <Route path="games/chess" element={<ChessPage />} />
+          <Route path="games/word-builder" element={<WordBuilderPage />} />
           <Route path="timer" element={<TimerPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
