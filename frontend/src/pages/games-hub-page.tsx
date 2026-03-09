@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Crown, Sparkles, Brain, Zap } from 'lucide-react'
+import { Crown, Crosshair, Sparkles, Brain, Zap } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { ParticlesBackground } from '../components/ui/particles-background'
 import { FloatingShapes } from '../components/ui/floating-shapes'
@@ -12,7 +12,7 @@ export function GamesHubPage() {
   const games = [
     {
       title: 'Word Builder Arena',
-      description: 'Unscramble letters and build words in this premium brain-training game',
+      description: 'Unscramble letters and build words in this premium brain-training game.',
       icon: Sparkles,
       color: 'from-violet-400 to-purple-500',
       glow: 'rgba(139, 92, 246, 0.4)',
@@ -20,11 +20,19 @@ export function GamesHubPage() {
     },
     {
       title: 'Chess Arena',
-      description: 'Challenge your strategic thinking with premium chess gameplay',
+      description: 'Challenge your strategic thinking with premium chess gameplay.',
       icon: Crown,
       color: 'from-cyan-400 to-blue-500',
       glow: 'rgba(34, 211, 238, 0.4)',
       route: '/dashboard/games/chess',
+    },
+    {
+      title: 'Warzone Lobby',
+      description: 'AAA-style battle royale lobby, loadout, squad, and map planning shell.',
+      icon: Crosshair,
+      color: 'from-rose-400 to-orange-500',
+      glow: 'rgba(244, 63, 94, 0.34)',
+      route: '/dashboard/games/warzone',
     },
   ]
 
@@ -46,26 +54,18 @@ export function GamesHubPage() {
       />
 
       <div className="relative z-10 space-y-8">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center"
-        >
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-violet-300/20 bg-violet-400/10 px-4 py-2">
             <Brain className="h-5 w-5 text-violet-300" />
-            <span className="text-sm font-semibold uppercase tracking-wider text-violet-200">
-              Premium Games
-            </span>
+            <span className="text-sm font-semibold uppercase tracking-wider text-violet-200">Premium Games</span>
           </div>
           <h1 className="mb-4 text-5xl font-black text-white sm:text-6xl">
             Game <span className="text-gradient">Arena</span>
           </h1>
-          <p className="text-xl text-slate-300">
-            Train your brain with premium educational games
-          </p>
+          <p className="text-xl text-slate-300">Train your brain with premium educational and tactical games.</p>
         </motion.div>
 
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {games.map((game, index) => {
             const Icon = game.icon
             return (
@@ -98,7 +98,7 @@ export function GamesHubPage() {
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                     >
-                      Play Now
+                      Launch
                       <Zap className="h-4 w-4" />
                     </motion.div>
                   </div>
