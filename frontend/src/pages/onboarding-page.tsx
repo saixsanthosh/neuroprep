@@ -21,6 +21,10 @@ const goalIcons = {
 } satisfies Record<GoalType, ComponentType<{ className?: string }>>
 
 const degreeTypes = ['Bachelor of Science', 'Bachelor of Technology', 'Bachelor of Commerce', 'Master Degree']
+const selectClassName =
+  'h-12 w-full appearance-none rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-white outline-none transition focus:border-cyan-300/40 focus:bg-white/10'
+const selectStyle = { colorScheme: 'dark' as const }
+const optionClassName = 'bg-slate-950 text-white'
 
 export function OnboardingPage() {
   const navigate = useNavigate()
@@ -198,13 +202,14 @@ export function OnboardingPage() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-white">Exam</label>
                     <select
-                      className="h-12 w-full rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-white outline-none"
+                      className={selectClassName}
+                      style={selectStyle}
                       value={examName}
                       onChange={(event) => setExamName(event.target.value)}
                     >
-                      <option value="">Select exam</option>
+                      <option className={optionClassName} value="">Select exam</option>
                       {onboardingOptions?.competitive_exams.map((exam) => (
-                        <option key={exam} value={exam}>
+                        <option className={optionClassName} key={exam} value={exam}>
                           {exam}
                         </option>
                       ))}
@@ -222,12 +227,13 @@ export function OnboardingPage() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-white">Grade level</label>
                     <select
-                      className="h-12 w-full rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-white outline-none"
+                      className={selectClassName}
+                      style={selectStyle}
                       value={schoolGrade}
                       onChange={(event) => setSchoolGrade(event.target.value)}
                     >
                       {Array.from({ length: 7 }, (_, index) => 6 + index).map((grade) => (
-                        <option key={grade} value={grade}>
+                        <option className={optionClassName} key={grade} value={grade}>
                           Grade {grade}
                         </option>
                       ))}
@@ -245,12 +251,13 @@ export function OnboardingPage() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-white">Degree type</label>
                     <select
-                      className="h-12 w-full rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-white outline-none"
+                      className={selectClassName}
+                      style={selectStyle}
                       value={degreeType}
                       onChange={(event) => setDegreeType(event.target.value)}
                     >
                       {degreeTypes.map((degree) => (
-                        <option key={degree} value={degree}>
+                        <option className={optionClassName} key={degree} value={degree}>
                           {degree}
                         </option>
                       ))}
@@ -272,12 +279,13 @@ export function OnboardingPage() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-white">Language to learn</label>
                     <select
-                      className="h-12 w-full rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-white outline-none"
+                      className={selectClassName}
+                      style={selectStyle}
                       value={language}
                       onChange={(event) => setLanguage(event.target.value)}
                     >
                       {onboardingOptions?.languages.map((entry) => (
-                        <option key={entry} value={entry}>
+                        <option className={optionClassName} key={entry} value={entry}>
                           {entry}
                         </option>
                       ))}
@@ -286,12 +294,13 @@ export function OnboardingPage() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-white">Current skill level</label>
                     <select
-                      className="h-12 w-full rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-white outline-none"
+                      className={selectClassName}
+                      style={selectStyle}
                       value={skillLevel}
                       onChange={(event) => setSkillLevel(event.target.value as typeof skillLevel)}
                     >
                       {onboardingOptions?.skill_levels.map((level) => (
-                        <option key={level} value={level}>
+                        <option className={optionClassName} key={level} value={level}>
                           {level}
                         </option>
                       ))}
@@ -305,12 +314,13 @@ export function OnboardingPage() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-white">Skill track</label>
                     <select
-                      className="h-12 w-full rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-white outline-none"
+                      className={selectClassName}
+                      style={selectStyle}
                       value={skillTrack}
                       onChange={(event) => setSkillTrack(event.target.value)}
                     >
                       {onboardingOptions?.skill_tracks.map((track) => (
-                        <option key={track} value={track}>
+                        <option className={optionClassName} key={track} value={track}>
                           {track}
                         </option>
                       ))}
@@ -319,12 +329,13 @@ export function OnboardingPage() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-white">Current level</label>
                     <select
-                      className="h-12 w-full rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-white outline-none"
+                      className={selectClassName}
+                      style={selectStyle}
                       value={skillLevel}
                       onChange={(event) => setSkillLevel(event.target.value as typeof skillLevel)}
                     >
                       {onboardingOptions?.skill_levels.map((level) => (
-                        <option key={level} value={level}>
+                        <option className={optionClassName} key={level} value={level}>
                           {level}
                         </option>
                       ))}
@@ -338,12 +349,13 @@ export function OnboardingPage() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-white">Focus level</label>
                     <select
-                      className="h-12 w-full rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-white outline-none"
+                      className={selectClassName}
+                      style={selectStyle}
                       value={skillLevel}
                       onChange={(event) => setSkillLevel(event.target.value as typeof skillLevel)}
                     >
                       {onboardingOptions?.skill_levels.map((level) => (
-                        <option key={level} value={level}>
+                        <option className={optionClassName} key={level} value={level}>
                           {level}
                         </option>
                       ))}
