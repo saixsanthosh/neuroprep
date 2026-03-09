@@ -26,6 +26,9 @@ def submit_game_score(
 
 
 @router.get('/leaderboard', response_model=list[LeaderboardEntry])
-def get_leaderboard(limit: int = Query(default=20, ge=5, le=100)) -> list[LeaderboardEntry]:
-    data = games_service.leaderboard(limit=limit)
+def get_leaderboard(
+    limit: int = Query(default=20, ge=5, le=100),
+    game_name: str | None = Query(default=None, min_length=2, max_length=80),
+) -> list[LeaderboardEntry]:
+    data = games_service.leaderboard(limit=limit, game_name=game_name)
     return [LeaderboardEntry(**item) for item in data]

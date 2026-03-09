@@ -25,6 +25,8 @@ interface GameInfoPanelProps {
   streak: number
   solvedCount: number
   leaderboard: LeaderboardEntry[]
+  isLeaderboardLoading?: boolean
+  leaderboardLabel?: string
 }
 
 const categoryIcons = {
@@ -56,7 +58,15 @@ const difficultyColors: Record<Difficulty, string> = {
 
 const dailyGoal = 10
 
-export function GameInfoPanel({ category, difficulty, streak, solvedCount, leaderboard }: GameInfoPanelProps) {
+export function GameInfoPanel({
+  category,
+  difficulty,
+  streak,
+  solvedCount,
+  leaderboard,
+  isLeaderboardLoading = false,
+  leaderboardLabel = 'Top word builders',
+}: GameInfoPanelProps) {
   const CategoryIcon = categoryIcons[category]
   const challengeProgress = Math.min(100, (solvedCount / dailyGoal) * 100)
 
@@ -121,16 +131,24 @@ export function GameInfoPanel({ category, difficulty, streak, solvedCount, leade
           <p className="text-xs font-semibold uppercase tracking-wider text-violet-300">Leaderboard</p>
         </div>
 
+        <p className="mb-3 text-xs text-slate-400">{leaderboardLabel}</p>
+
         <div className="space-y-2">
-          {leaderboard.map((entry, index) => (
-            <div key={`${entry.name}-${index}`} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3 text-sm">
-              <div className="flex items-center gap-3">
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 font-bold text-slate-300">{index + 1}</span>
-                <span className="font-medium text-white">{entry.name}</span>
-              </div>
-              <span className="font-bold text-violet-300">{entry.score}</span>
+          {isLeaderboardLoading ? (
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-slate-400">
+              Syncing leaderboard...
             </div>
-          ))}
+          ) : (
+            leaderboard.map((entry, index) => (
+              <div key={`${entry.name}-${index}`} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3 text-sm">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 font-bold text-slate-300">{index + 1}</span>
+                  <span className="font-medium text-white">{entry.name}</span>
+                </div>
+                <span className="font-bold text-violet-300">{entry.score}</span>
+              </div>
+            ))
+          )}
         </div>
       </GlowingCard>
 

@@ -462,9 +462,9 @@ export async function submitGameScore(payload: { game_name: string; score: numbe
   return data
 }
 
-export async function getGamesLeaderboard(limit = 20): Promise<GamesLeaderboardEntry[]> {
+export async function getGamesLeaderboard(limit = 20, game_name?: string): Promise<GamesLeaderboardEntry[]> {
   const { data } = await api.get<GamesLeaderboardEntry[]>('/games/leaderboard', {
-    params: { limit },
+    params: game_name ? { limit, game_name } : { limit },
   })
   return data
 }

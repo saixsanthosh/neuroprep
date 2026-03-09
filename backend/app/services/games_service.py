@@ -23,22 +23,21 @@ class GamesService:
         response = self.client.table('game_scores').insert(row).execute()
         return response.data[0]
 
-    def leaderboard(self, limit: int = 20) -> list[dict]:
+    def leaderboard(self, limit: int = 20, game_name: str | None = None) -> list[dict]:
         if self.demo_mode:
             scores_rows = list_rows('game_scores', order_by='score', desc=True, limit=200)
+            if game_name:
+                scores_rows = [row for row in scores_rows if row.get('game_name') == game_name]
             username_map = {
                 row['user_id']: row.get('username', 'Unknown')
                 for row in scores_rows
                 if row.get('username')
             }
         else:
-            scores_response = (
-                self.client.table('game_scores')
-                .select('user_id, score')
-                .order('score', desc=True)
-                .limit(200)
-                .execute()
-            )
+            query = self.client.table('game_scores').select('user_id, score, game_name').order('score', desc=True).limit(200)
+            if game_name:
+                query = query.eq('game_name', game_name)
+            scores_response = query.execute()
 
             users_response = self.client.table('users').select('id, username').execute()
             scores_rows = scores_response.data or []

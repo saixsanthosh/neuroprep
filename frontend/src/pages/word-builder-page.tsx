@@ -1,17 +1,19 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Brain,
   Clock,
   Coins,
   Flame,
   Lightbulb,
-  Settings,
+  LoaderCircle,
   Shuffle,
   SkipForward,
   Star,
   Target,
   Trophy,
+  Volume2,
+  VolumeX,
   Zap,
 } from 'lucide-react'
 
@@ -26,10 +28,14 @@ import { AnimatedGradientOrb } from '../components/ui/animated-gradient-orb'
 import { Button } from '../components/ui/button'
 import { FloatingShapes } from '../components/ui/floating-shapes'
 import { ParticlesBackground } from '../components/ui/particles-background'
+import { useAuth } from '../contexts/auth-context'
+import { getGamesLeaderboard, submitGameScore } from '../lib/api'
 
 type GameMode = 'menu' | 'classic' | 'speed' | 'survival' | 'battle'
 type Difficulty = 'beginner' | 'intermediate' | 'advanced' | 'expert'
 type Category = 'science' | 'technology' | 'programming' | 'english' | 'history' | 'mathematics' | 'general-knowledge'
+type ScoreSyncState = 'idle' | 'saving' | 'saved' | 'error'
+type SoundType = 'move' | 'correct' | 'wrong' | 'levelup'
 
 type Tile = {
   id: string
@@ -53,7 +59,31 @@ const XP_PER_CORRECT = 100
 const XP_PER_LEVEL = 100
 const HINT_COST = 50
 const COIN_REWARD = 10
+const ROUND_SECONDS = 60
 const STORAGE_KEY = 'neuroprep_word_builder_leaderboard_v2'
+const GAME_KEY = 'word_builder'
+const LEADERBOARD_LIMIT = 5
+
+const SOUND_FILES: Record<SoundType, string> = {
+  move: '/sounds/move.mp3',
+  correct: '/sounds/capture.mp3',
+  wrong: '/sounds/check.mp3',
+  levelup: '/sounds/win.mp3',
+}
+
+type BotProfile = {
+  minDelay: number
+  maxDelay: number
+  successRate: number
+  comboGain: number
+}
+
+const BOT_PROFILES: Record<Difficulty, BotProfile> = {
+  beginner: { minDelay: 3400, maxDelay: 5200, successRate: 0.68, comboGain: 0.35 },
+  intermediate: { minDelay: 2800, maxDelay: 4600, successRate: 0.8, comboGain: 0.45 },
+  advanced: { minDelay: 2100, maxDelay: 3800, successRate: 0.9, comboGain: 0.6 },
+  expert: { minDelay: 1700, maxDelay: 3200, successRate: 0.96, comboGain: 0.75 },
+}
 
 const puzzles: Puzzle[] = [
   { word: 'COMPUTER', scrambled: 'PTACMOEUR', category: 'technology', difficulty: 'beginner', hint: 'Electronic machine for processing information.' },
@@ -84,7 +114,15 @@ function shuffleTiles(items: Tile[]) {
   return next
 }
 
-function playTone(sound: 'move' | 'correct' | 'wrong' | 'levelup') {
+function randomBetween(min: number, max: number) {
+  return Math.floor(Math.random() * (max - min + 1)) + min
+}
+
+function formatCategory(category: Category) {
+  return category.replace('-', ' ')
+}
+
+function playTone(sound: SoundType) {
   if (typeof window === 'undefined' || !window.AudioContext) {
     return
   }
@@ -123,7 +161,17 @@ function readLeaderboard(): LeaderboardEntry[] {
   }
 }
 
+function mergeLeaderboard(entries: LeaderboardEntry[]) {
+  return entries
+    .filter((entry) => entry.name.trim().length > 0)
+    .sort((left, right) => right.score - left.score)
+    .slice(0, LEADERBOARD_LIMIT)
+}
+
 export function WordBuilderPage() {
+  const { user } = useAuth()
+  const soundRefs = useRef<Partial<Record<SoundType, HTMLAudioElement>>>({})
+
   const [gameMode, setGameMode] = useState<GameMode>('menu')
   const [currentPuzzle, setCurrentPuzzle] = useState<Puzzle>(puzzles[0])
   const [scrambledTiles, setScrambledTiles] = useState<Tile[]>(() => buildTiles(puzzles[0].scrambled))
@@ -136,7 +184,7 @@ export function WordBuilderPage() {
   const [streak, setStreak] = useState(0)
   const [combo, setCombo] = useState(1)
   const [coins, setCoins] = useState(100)
-  const [timeLeft, setTimeLeft] = useState(60)
+  const [timeLeft, setTimeLeft] = useState(ROUND_SECONDS)
   const [totalAttempts, setTotalAttempts] = useState(0)
   const [correctAttempts, setCorrectAttempts] = useState(0)
   const [showSuccess, setShowSuccess] = useState(false)
@@ -145,26 +193,121 @@ export function WordBuilderPage() {
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [lastReward, setLastReward] = useState(0)
   const [botScore, setBotScore] = useState(0)
-  const [botAccuracy, setBotAccuracy] = useState(72)
+  const [botAttempts, setBotAttempts] = useState(0)
+  const [botCorrectAttempts, setBotCorrectAttempts] = useState(0)
+  const [botCombo, setBotCombo] = useState(1)
+  const [botStatus, setBotStatus] = useState('Bot Sigma is waiting for the battle to start.')
   const [gameOverMessage, setGameOverMessage] = useState<string | null>(null)
   const [storedLeaderboard, setStoredLeaderboard] = useState<LeaderboardEntry[]>(() => readLeaderboard())
+  const [remoteLeaderboard, setRemoteLeaderboard] = useState<LeaderboardEntry[]>([])
+  const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(true)
+  const [leaderboardError, setLeaderboardError] = useState<string | null>(null)
+  const [scoreSyncState, setScoreSyncState] = useState<ScoreSyncState>('idle')
 
   const answer = useMemo(() => answerTiles.map((tile) => tile.letter).join(''), [answerTiles])
   const accuracy = useMemo(
     () => (totalAttempts === 0 ? 0 : Math.round((correctAttempts / totalAttempts) * 100)),
     [correctAttempts, totalAttempts],
   )
+  const botAccuracy = useMemo(
+    () => (botAttempts === 0 ? 0 : Math.round((botCorrectAttempts / botAttempts) * 100)),
+    [botAttempts, botCorrectAttempts],
+  )
   const xpToNextLevel = XP_PER_LEVEL
+  const isSavingScore = scoreSyncState === 'saving'
 
   const leaderboard = useMemo(() => {
-    const current = score > 0 ? [{ name: gameMode === 'battle' ? 'You' : 'Current Run', score }] : []
-    const battleBot = gameMode === 'battle' ? [{ name: 'Bot Sigma', score: botScore }] : []
-    const merged = [...current, ...battleBot, ...storedLeaderboard]
-      .sort((left, right) => right.score - left.score)
-      .slice(0, 5)
+    const transientEntries: LeaderboardEntry[] = []
+    if (score > 0 && scoreSyncState !== 'saved') {
+      transientEntries.push({ name: user?.username ?? 'You', score })
+    }
+    if (gameMode === 'battle' && botScore > 0) {
+      transientEntries.push({ name: 'Bot Sigma', score: botScore })
+    }
 
+    const merged = mergeLeaderboard([...transientEntries, ...remoteLeaderboard, ...storedLeaderboard])
     return merged.length > 0 ? merged : [{ name: 'No scores yet', score: 0 }]
-  }, [botScore, gameMode, score, storedLeaderboard])
+  }, [botScore, gameMode, remoteLeaderboard, score, scoreSyncState, storedLeaderboard, user?.username])
+
+  const leaderboardLabel = leaderboardError ?? 'Live Word Builder leaderboard'
+
+  const hydrateLeaderboard = useCallback(async () => {
+    setIsLeaderboardLoading(true)
+    try {
+      const rows = await getGamesLeaderboard(LEADERBOARD_LIMIT, GAME_KEY)
+      setRemoteLeaderboard(rows.map((entry) => ({ name: entry.username, score: entry.score })))
+      setLeaderboardError(null)
+    } catch {
+      setLeaderboardError('Saved locally. Live leaderboard unavailable.')
+    } finally {
+      setIsLeaderboardLoading(false)
+    }
+  }, [])
+
+  const persistLocalScore = useCallback(
+    (nextScore: number) => {
+      if (typeof window === 'undefined' || nextScore <= 0) {
+        return
+      }
+
+      setStoredLeaderboard((previous) => {
+        const nextLeaderboard = mergeLeaderboard([...previous, { name: user?.username ?? 'You', score: nextScore }])
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextLeaderboard))
+        return nextLeaderboard
+      })
+    },
+    [user?.username],
+  )
+
+  const persistScore = useCallback(
+    async (nextScore: number) => {
+      if (nextScore <= 0 || scoreSyncState === 'saving' || scoreSyncState === 'saved') {
+        return
+      }
+
+      persistLocalScore(nextScore)
+      setScoreSyncState('saving')
+
+      try {
+        await submitGameScore({ game_name: GAME_KEY, score: nextScore })
+        await hydrateLeaderboard()
+        setScoreSyncState('saved')
+        setLeaderboardError(null)
+      } catch {
+        setScoreSyncState('error')
+        setLeaderboardError('Saved locally. Live sync is unavailable right now.')
+      }
+    },
+    [hydrateLeaderboard, persistLocalScore, scoreSyncState],
+  )
+
+  useEffect(() => {
+    void hydrateLeaderboard()
+  }, [hydrateLeaderboard])
+
+  useEffect(() => {
+    if (typeof Audio === 'undefined') {
+      return
+    }
+
+    const nextRefs = Object.fromEntries(
+      Object.entries(SOUND_FILES).map(([key, value]) => {
+        const audio = new Audio(value)
+        audio.preload = 'auto'
+        audio.volume = 0.45
+        return [key, audio]
+      }),
+    ) as Record<SoundType, HTMLAudioElement>
+
+    soundRefs.current = nextRefs
+
+    return () => {
+      Object.values(nextRefs).forEach((audio) => {
+        audio.pause()
+        audio.src = ''
+      })
+    }
+  }, [])
 
   useEffect(() => {
     if ((gameMode !== 'speed' && gameMode !== 'battle') || timeLeft <= 0 || gameOverMessage) {
@@ -176,13 +319,14 @@ export function WordBuilderPage() {
         const next = Math.max(0, previous - 1)
         if (next === 0) {
           window.setTimeout(() => {
-            setGameOverMessage(
+            const message =
               gameMode === 'battle'
                 ? score >= botScore
                   ? `Time. You win ${score} to ${botScore}.`
                   : `Time. Bot Sigma wins ${botScore} to ${score}.`
-                : `Time. You solved ${solvedCount} puzzle${solvedCount === 1 ? '' : 's'}.`,
-            )
+                : `Time. You solved ${solvedCount} puzzle${solvedCount === 1 ? '' : 's'}.`
+            void persistScore(score)
+            setGameOverMessage(message)
           }, 0)
         }
         return next
@@ -190,41 +334,54 @@ export function WordBuilderPage() {
     }, 1000)
 
     return () => window.clearInterval(timer)
-  }, [botScore, gameMode, gameOverMessage, score, solvedCount, timeLeft])
+  }, [botScore, gameMode, gameOverMessage, persistScore, score, solvedCount, timeLeft])
 
   useEffect(() => {
     if (gameMode !== 'battle' || timeLeft <= 0 || gameOverMessage) {
       return
     }
 
-    const botInterval = window.setInterval(() => {
-      setBotScore((previous) => previous + 60 + Math.floor(Math.random() * 60))
-      setBotAccuracy(68 + Math.floor(Math.random() * 22))
-    }, 4200)
+    const targetPuzzle = randomPuzzle()
+    const profile = BOT_PROFILES[targetPuzzle.difficulty]
+    setBotStatus(`Bot Sigma is reading a ${targetPuzzle.word.length}-letter ${formatCategory(targetPuzzle.category)} puzzle.`)
 
-    return () => window.clearInterval(botInterval)
-  }, [gameMode, gameOverMessage, timeLeft])
+    const botTimeout = window.setTimeout(() => {
+      setBotAttempts((previous) => previous + 1)
 
-  function playSound(type: 'move' | 'correct' | 'wrong' | 'levelup') {
-    if (!soundEnabled) {
-      return
-    }
+      if (Math.random() < profile.successRate) {
+        setBotCorrectAttempts((previous) => previous + 1)
+        setBotCombo((previous) => {
+          const nextCombo = Math.min(previous + profile.comboGain, 4)
+          setBotScore((current) => current + Math.floor(XP_PER_CORRECT * nextCombo))
+          return nextCombo
+        })
+        setBotStatus(`Bot Sigma solved ${targetPuzzle.word}.`)
+      } else {
+        setBotCombo(1)
+        setBotStatus(`Bot Sigma missed ${targetPuzzle.word}.`)
+      }
+    }, randomBetween(profile.minDelay, profile.maxDelay))
 
-    playTone(type)
-  }
+    return () => window.clearTimeout(botTimeout)
+  }, [botAttempts, gameMode, gameOverMessage, timeLeft])
 
-  function recordLeaderboard(nextScore: number) {
-    if (typeof window === 'undefined' || nextScore <= 0) {
-      return
-    }
+  const playSound = useCallback(
+    (type: SoundType) => {
+      if (!soundEnabled) {
+        return
+      }
 
-    const nextLeaderboard = [...storedLeaderboard, { name: `Run ${storedLeaderboard.length + 1}`, score: nextScore }]
-      .sort((left, right) => right.score - left.score)
-      .slice(0, 5)
+      const audio = soundRefs.current[type]
+      if (!audio) {
+        playTone(type)
+        return
+      }
 
-    setStoredLeaderboard(nextLeaderboard)
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextLeaderboard))
-  }
+      audio.currentTime = 0
+      void audio.play().catch(() => playTone(type))
+    },
+    [soundEnabled],
+  )
 
   function resetBoard(nextPuzzle: Puzzle) {
     setCurrentPuzzle(nextPuzzle)
@@ -247,10 +404,22 @@ export function WordBuilderPage() {
     setCorrectAttempts(0)
     setLastReward(0)
     setBotScore(0)
-    setBotAccuracy(72)
-    setTimeLeft(mode === 'classic' ? 0 : 60)
+    setBotAttempts(0)
+    setBotCorrectAttempts(0)
+    setBotCombo(1)
+    setBotStatus('Bot Sigma is waiting for the first puzzle.')
+    setTimeLeft(mode === 'classic' ? 0 : ROUND_SECONDS)
     setGameOverMessage(null)
+    setScoreSyncState('idle')
     resetBoard(randomPuzzle())
+  }
+
+  async function handleBackToMenu() {
+    if (score > 0 && scoreSyncState !== 'saved') {
+      await persistScore(score)
+    }
+    setGameOverMessage(null)
+    setGameMode('menu')
   }
 
   function moveTileToAnswer(tileId: string) {
@@ -297,8 +466,8 @@ export function WordBuilderPage() {
     setCombo(1)
   }
 
-  function finishRound(message: string) {
-    recordLeaderboard(score)
+  function finishRound(message: string, finalScore = score) {
+    void persistScore(finalScore)
     setGameOverMessage(message)
   }
 
@@ -394,7 +563,7 @@ export function WordBuilderPage() {
                 transition={{ delay: 0.4 }}
                 className="text-xl text-slate-300"
               >
-                Premium brain-training with glowing tiles, drag-and-drop answers, and competitive scoring.
+                Premium brain-training with glowing tiles, live leaderboards, and battle-ready bot pressure.
               </motion.p>
             </div>
 
@@ -417,7 +586,7 @@ export function WordBuilderPage() {
         className="relative z-10 mb-6 flex flex-wrap items-center justify-between gap-4"
       >
         <div className="flex items-center gap-4">
-          <Button variant="secondary" size="sm" onClick={() => setGameMode('menu')}>
+          <Button variant="secondary" size="sm" onClick={() => void handleBackToMenu()}>
             Back to Menu
           </Button>
           <div className="flex items-center gap-3">
@@ -440,8 +609,12 @@ export function WordBuilderPage() {
             <Star className="h-4 w-4 text-cyan-300" />
             <span className="font-bold text-cyan-200">Lvl {level}</span>
           </div>
-          <button type="button" onClick={() => setSoundEnabled((previous) => !previous)} className="rounded-xl border border-white/10 bg-white/5 p-2 transition hover:bg-white/10">
-            <Settings className="h-4 w-4 text-white" />
+          <button
+            type="button"
+            onClick={() => setSoundEnabled((previous) => !previous)}
+            className="rounded-xl border border-white/10 bg-white/5 p-2 transition hover:bg-white/10"
+          >
+            {soundEnabled ? <Volume2 className="h-4 w-4 text-white" /> : <VolumeX className="h-4 w-4 text-white" />}
           </button>
         </div>
       </motion.div>
@@ -454,6 +627,8 @@ export function WordBuilderPage() {
             streak={streak}
             solvedCount={solvedCount}
             leaderboard={leaderboard}
+            isLeaderboardLoading={isLeaderboardLoading}
+            leaderboardLabel={leaderboardLabel}
           />
         </motion.div>
 
@@ -469,7 +644,7 @@ export function WordBuilderPage() {
                   </div>
                   <div>
                     <p className="text-sm text-slate-400">Unscramble the word</p>
-                    <p className="text-xs capitalize text-slate-500">{currentPuzzle.category.replace('-', ' ')}</p>
+                    <p className="text-xs capitalize text-slate-500">{formatCategory(currentPuzzle.category)}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -532,7 +707,13 @@ export function WordBuilderPage() {
                 ) : null}
               </AnimatePresence>
 
-              <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {gameMode === 'battle' ? (
+                <div className="mt-4 rounded-2xl border border-pink-300/15 bg-pink-400/10 px-4 py-3 text-sm text-pink-100">
+                  {botStatus}
+                </div>
+              ) : null}
+
+              <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
                 <Button variant="secondary" onClick={shuffleLetters} className="gap-2">
                   <Shuffle className="h-4 w-4" />
                   Shuffle
@@ -544,6 +725,15 @@ export function WordBuilderPage() {
                 <Button variant="secondary" onClick={skipPuzzle} className="gap-2">
                   <SkipForward className="h-4 w-4" />
                   Skip
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => finishRound(`Run banked. Final score: ${score}.`, score)}
+                  disabled={score === 0 || Boolean(gameOverMessage) || isSavingScore}
+                  className="gap-2"
+                >
+                  {isSavingScore ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Trophy className="h-4 w-4" />}
+                  Bank Score
                 </Button>
                 <Button onClick={submitAnswer} disabled={answerTiles.length === 0 || Boolean(gameOverMessage)} className="gap-2 bg-gradient-to-r from-violet-500 to-purple-600">
                   <Zap className="h-4 w-4" />
@@ -578,7 +768,7 @@ export function WordBuilderPage() {
           </div>
 
           {gameMode === 'battle' ? (
-            <div className="glass-panel grid gap-3 p-4 md:grid-cols-2">
+            <div className="glass-panel grid gap-3 p-4 md:grid-cols-3">
               <div>
                 <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Bot pressure</p>
                 <p className="mt-1 text-2xl font-black text-white">{botScore}</p>
@@ -587,12 +777,27 @@ export function WordBuilderPage() {
                 <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Bot accuracy</p>
                 <p className="mt-1 text-2xl font-black text-white">{botAccuracy}%</p>
               </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Bot combo</p>
+                <p className="mt-1 text-2xl font-black text-white">x{botCombo.toFixed(1)}</p>
+              </div>
             </div>
           ) : null}
         </motion.div>
 
         <motion.div initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}>
-          <PlayerStatsPanel level={level} xp={xp} xpToNextLevel={xpToNextLevel} streak={streak} combo={combo} accuracy={accuracy} />
+          <PlayerStatsPanel
+            level={level}
+            xp={xp}
+            xpToNextLevel={xpToNextLevel}
+            streak={streak}
+            combo={combo}
+            accuracy={accuracy}
+            coins={coins}
+            modeLabel={gameMode}
+            isSavingScore={isSavingScore}
+            botScore={gameMode === 'battle' ? botScore : undefined}
+          />
         </motion.div>
       </div>
 
@@ -629,9 +834,25 @@ export function WordBuilderPage() {
                   <p className="mt-2 text-2xl font-black text-white">{accuracy}%</p>
                 </div>
               </div>
+
+              <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+                {scoreSyncState === 'saving' ? 'Saving your run to the live leaderboard...' : null}
+                {scoreSyncState === 'saved' ? 'Score saved to the live leaderboard.' : null}
+                {scoreSyncState === 'error' ? 'Saved locally. Live sync failed for this run.' : null}
+                {scoreSyncState === 'idle' ? 'Bank this run to lock it into the leaderboard.' : null}
+              </div>
+
               <div className="mt-6 flex flex-wrap gap-3">
-                <Button onClick={() => startMode(gameMode)} className="bg-gradient-to-r from-violet-500 to-purple-600 text-white">Play Again</Button>
-                <Button variant="secondary" onClick={() => setGameMode('menu')}>Back to Menu</Button>
+                <Button
+                  onClick={() => startMode(gameMode)}
+                  disabled={isSavingScore}
+                  className="bg-gradient-to-r from-violet-500 to-purple-600 text-white"
+                >
+                  Play Again
+                </Button>
+                <Button variant="secondary" onClick={() => void handleBackToMenu()}>
+                  Back to Menu
+                </Button>
               </div>
             </motion.div>
           </motion.div>

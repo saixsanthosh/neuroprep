@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Flame, Star, Target, Zap } from 'lucide-react'
+import { Clock3, Flame, LoaderCircle, Star, Target, Zap } from 'lucide-react'
 
 import { GlowingCard } from '../ui/glowing-card'
 
@@ -10,9 +10,24 @@ interface PlayerStatsPanelProps {
   streak: number
   combo: number
   accuracy: number
+  coins: number
+  modeLabel: string
+  isSavingScore?: boolean
+  botScore?: number
 }
 
-export function PlayerStatsPanel({ level, xp, xpToNextLevel, streak, combo, accuracy }: PlayerStatsPanelProps) {
+export function PlayerStatsPanel({
+  level,
+  xp,
+  xpToNextLevel,
+  streak,
+  combo,
+  accuracy,
+  coins,
+  modeLabel,
+  isSavingScore = false,
+  botScore,
+}: PlayerStatsPanelProps) {
   const xpProgress = xpToNextLevel > 0 ? (xp / xpToNextLevel) * 100 : 0
 
   return (
@@ -102,6 +117,38 @@ export function PlayerStatsPanel({ level, xp, xpToNextLevel, streak, combo, accu
         <p className="mt-2 text-center text-2xl font-black text-white">{accuracy}%</p>
       </GlowingCard>
 
+      <div className="grid grid-cols-2 gap-3">
+        <GlowingCard className="p-4" glowColor="rgba(251, 191, 36, 0.35)">
+          <div className="flex items-center gap-2">
+            <Clock3 className="h-4 w-4 text-amber-300" />
+            <p className="text-xs text-slate-400">Coins</p>
+          </div>
+          <p className="mt-2 text-3xl font-black text-white">{coins}</p>
+        </GlowingCard>
+
+        <GlowingCard className="p-4" glowColor="rgba(34, 211, 238, 0.35)">
+          <div className="flex items-center gap-2">
+            <Target className="h-4 w-4 text-cyan-300" />
+            <p className="text-xs text-slate-400">Mode</p>
+          </div>
+          <p className="mt-2 text-lg font-black capitalize text-white">{modeLabel}</p>
+        </GlowingCard>
+      </div>
+
+      {typeof botScore === 'number' ? (
+        <GlowingCard className="p-4" glowColor="rgba(244, 114, 182, 0.35)">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-pink-300">Bot Pressure</p>
+              <p className="mt-2 text-3xl font-black text-white">{botScore}</p>
+            </div>
+            <div className="rounded-xl border border-pink-300/20 bg-pink-400/10 px-3 py-1 text-xs text-pink-100">
+              Battle live
+            </div>
+          </div>
+        </GlowingCard>
+      ) : null}
+
       <GlowingCard className="p-4" glowColor="rgba(167, 139, 250, 0.3)">
         <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-violet-300">Pro Tips</p>
         <ul className="space-y-2 text-xs text-slate-300">
@@ -119,6 +166,15 @@ export function PlayerStatsPanel({ level, xp, xpToNextLevel, streak, combo, accu
           </li>
         </ul>
       </GlowingCard>
+
+      {isSavingScore ? (
+        <GlowingCard className="p-4" glowColor="rgba(56, 189, 248, 0.25)">
+          <div className="flex items-center gap-3 text-sm text-cyan-100">
+            <LoaderCircle className="h-4 w-4 animate-spin" />
+            <span>Saving score to the live leaderboard...</span>
+          </div>
+        </GlowingCard>
+      ) : null}
     </div>
   )
 }
