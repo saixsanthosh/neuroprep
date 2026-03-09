@@ -6,6 +6,7 @@ interface GlowingCardProps {
   children: ReactNode
   className?: string
   glowColor?: 'cyan' | 'purple' | 'pink' | 'amber' | 'violet' | 'yellow' | string
+  onClick?: () => void
 }
 
 const glowColorMap = {
@@ -21,6 +22,7 @@ export function GlowingCard({
   children,
   className = '',
   glowColor = 'cyan',
+  onClick,
 }: GlowingCardProps) {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
   const [isHovering, setIsHovering] = useState(false)
@@ -38,11 +40,24 @@ export function GlowingCard({
   return (
     <motion.div
       className={`group relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 backdrop-blur-2xl ${className}`}
+      onClick={onClick}
       onMouseMove={handleMouseMove}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
       whileHover={{ scale: 1.02, y: -5 }}
       transition={{ duration: 0.3 }}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                onClick()
+              }
+            }
+          : undefined
+      }
     >
       {isHovering && (
         <motion.div

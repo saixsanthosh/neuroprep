@@ -141,7 +141,7 @@ MODULE_MAP: dict[str, list[dict[str, str]]] = {
             'id': 'vocabulary-lessons',
             'title': 'Vocabulary Lessons',
             'description': 'Progressive memory-based word training with review loops.',
-            'route': '/dashboard/games',
+            'route': '/dashboard/notes',
             'accent': 'from-pink-400 to-rose-500',
             'category': 'Language',
         },
@@ -250,17 +250,19 @@ class LearningProfileService:
         return response.data[0] if response.data else None
 
     def upsert_profile(self, user_id: str, payload: LearningProfileUpsertRequest) -> dict:
-        focus_modules = [module['id'] for module in MODULE_MAP[payload.goal_type]]
+        goal_type = payload.goal_type
+        uses_subjects = goal_type in {'school_learning', 'competitive_exams', 'general_knowledge'}
+        focus_modules = [module['id'] for module in MODULE_MAP[goal_type]]
         row = {
             'user_id': user_id,
-            'goal_type': payload.goal_type,
-            'exam_name': payload.exam_name,
-            'school_grade': payload.school_grade,
-            'degree_type': payload.degree_type,
-            'major_subject': payload.major_subject,
-            'subjects': payload.subjects,
-            'language': payload.language,
-            'skill_track': payload.skill_track,
+            'goal_type': goal_type,
+            'exam_name': payload.exam_name if goal_type == 'competitive_exams' else None,
+            'school_grade': payload.school_grade if goal_type == 'school_learning' else None,
+            'degree_type': payload.degree_type if goal_type == 'college_courses' else None,
+            'major_subject': payload.major_subject if goal_type == 'college_courses' else None,
+            'subjects': payload.subjects if uses_subjects else [],
+            'language': payload.language if goal_type == 'language_learning' else None,
+            'skill_track': payload.skill_track if goal_type == 'skill_learning' else None,
             'skill_level': payload.skill_level,
             'study_hours': payload.study_hours,
             'onboarding_completed': True,
@@ -344,7 +346,7 @@ class LearningProfileService:
                         'id': 'jp-particles',
                         'lesson_type': 'grammar',
                         'title': 'Particles starter pack',
-                        'description': 'Understand は, が, を, に, and で through short sentence patterns and translation drills.',
+                        'description': 'Understand wa, ga, o, ni, and de through short sentence patterns and translation drills.',
                         'duration_minutes': 16,
                         'difficulty': skill_level,
                     },
@@ -352,7 +354,7 @@ class LearningProfileService:
                         'id': 'jp-verbs',
                         'lesson_type': 'grammar',
                         'title': 'Polite verb patterns',
-                        'description': 'Practice です, ます, ません, and common daily verbs with beginner conjugation reps.',
+                        'description': 'Practice desu, masu, masen, and common daily verbs with beginner conjugation reps.',
                         'duration_minutes': 15,
                         'difficulty': skill_level,
                     },
@@ -385,20 +387,20 @@ class LearningProfileService:
                     {'day': 'Day 1', 'title': 'Hiragana and sounds', 'objective': 'Finish the base hiragana chart and read simple syllables without romaji.'},
                     {'day': 'Day 2', 'title': 'Katakana and loanwords', 'objective': 'Read common katakana words and spot familiar English-origin vocabulary.'},
                     {'day': 'Day 3', 'title': 'Greetings and self-introduction', 'objective': 'Say your name, nationality, and basic greetings in polite Japanese.'},
-                    {'day': 'Day 4', 'title': 'Particles and sentence order', 'objective': 'Build short sentences using は, を, and に with confidence.'},
-                    {'day': 'Day 5', 'title': 'Polite verbs', 'objective': 'Use です and ます forms for everyday statements and questions.'},
+                    {'day': 'Day 4', 'title': 'Particles and sentence order', 'objective': 'Build short sentences using wa, o, and ni with confidence.'},
+                    {'day': 'Day 5', 'title': 'Polite verbs', 'objective': 'Use desu and masu forms for everyday statements and questions.'},
                     {'day': 'Day 6', 'title': 'Listening and shadowing', 'objective': 'Repeat short dialogues and understand key phrases without pausing every line.'},
                     {'day': 'Day 7', 'title': 'Kanji and review', 'objective': 'Learn the first kanji pack and review the full week with a quiz and flashcards.'},
                 ],
                 'survival_pack': [
-                    'こんにちは - hello',
-                    'ありがとうございます - thank you',
-                    'すみません - excuse me / sorry',
-                    'はい / いいえ - yes / no',
-                    'わたしは ... です - I am ...',
-                    'これはなんですか - what is this?',
-                    'もういちどおねがいします - please say it again',
-                    'わかりません - I do not understand',
+                    'konnichiwa - hello',
+                    'arigatou gozaimasu - thank you',
+                    'sumimasen - excuse me / sorry',
+                    'hai / iie - yes / no',
+                    'watashi wa ... desu - I am ...',
+                    'kore wa nan desu ka - what is this?',
+                    'mou ichido onegaishimasu - please say it again',
+                    'wakarimasen - I do not understand',
                 ],
                 'resource_links': [
                     {
@@ -495,6 +497,13 @@ class LearningProfileService:
         return profile
 
     def _focus_tracks(self, profile: dict) -> list[str]:
+        goal_type = profile.get('goal_type')
+        if goal_type == 'language_learning':
+            language = profile.get('language') or 'Language learning'
+            return [language, 'Vocabulary', 'Speaking', 'Listening']
+        if goal_type == 'skill_learning':
+            track = profile.get('skill_track') or 'Skill learning'
+            return [track, 'Projects', 'Practice', 'Review']
         if profile.get('subjects'):
             return profile['subjects'][:4]
 

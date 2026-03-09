@@ -61,6 +61,8 @@ class CompanionService:
     def _focus_label(self, profile: dict, weak_topics: list[dict]) -> str:
         if weak_topics:
             return weak_topics[0]['topic']
+        if profile.get('goal_type') == 'language_learning':
+            return profile.get('language') or 'language practice'
         if profile.get('subjects'):
             return profile['subjects'][0]
         return (
@@ -155,12 +157,15 @@ class CompanionService:
         return 'Momentum is still recoverable today. One focused sprint can reset the entire day.'
 
     def _skill_progress_map(self, profile: dict, productivity_score: int, weak_topics: list[dict]) -> list[dict]:
-        tracks = profile.get('subjects') or [
-            profile.get('exam_name'),
-            profile.get('language'),
-            profile.get('skill_track'),
-            profile.get('major_subject'),
-        ]
+        if profile.get('goal_type') == 'language_learning':
+            tracks = ['Vocabulary', 'Speaking', 'Listening', 'Grammar']
+        else:
+            tracks = profile.get('subjects') or [
+                profile.get('exam_name'),
+                profile.get('language'),
+                profile.get('skill_track'),
+                profile.get('major_subject'),
+            ]
         labels = [track for track in tracks if track][:4] or ['Core mastery', 'Practice memory', 'Revision speed']
         nodes = []
         for index, label in enumerate(labels):

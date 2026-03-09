@@ -89,6 +89,10 @@ export function DashboardHomePage() {
   const [studyHours, setStudyHours] = useState<StudyHoursResponse | null>(null)
   const [performance, setPerformance] = useState<PerformanceResponse | null>(null)
   const [studyStats, setStudyStats] = useState<StudyStatsResponse | null>(null)
+  const primaryFocus =
+    profile?.goal_type === 'language_learning'
+      ? profile.language ?? dashboard?.focus_tracks?.[0] ?? 'Language practice'
+      : dashboard?.focus_tracks?.[0] ?? 'Deep work'
 
   const quickActions = (dashboard?.modules ?? []).slice(0, 3).map((module, index) => ({
     label: module.title,
@@ -297,7 +301,7 @@ export function DashboardHomePage() {
           <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-1">
             <div className="rounded-[1.5rem] border border-white/10 bg-black/20 p-5 backdrop-blur-2xl">
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Focus lane</p>
-              <p className="mt-3 text-3xl font-bold text-white">{dashboard?.focus_tracks?.[0] ?? 'Deep work'}</p>
+              <p className="mt-3 text-3xl font-bold text-white">{primaryFocus}</p>
               <p className="mt-2 text-sm text-slate-400">{companionBrief?.next_focus ?? 'Targeted revision block is being prepared from your profile.'}</p>
             </div>
             <div className="rounded-[1.5rem] border border-white/10 bg-black/20 p-5 backdrop-blur-2xl">

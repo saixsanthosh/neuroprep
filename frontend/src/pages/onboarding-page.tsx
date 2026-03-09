@@ -42,6 +42,8 @@ export function OnboardingPage() {
   const [skillLevel, setSkillLevel] = useState<'beginner' | 'intermediate' | 'advanced'>('intermediate')
   const [studyHours, setStudyHours] = useState('3')
   const [error, setError] = useState('')
+  const goalUsesSubjects =
+    goalType === 'school_learning' || goalType === 'competitive_exams' || goalType === 'general_knowledge'
 
   useEffect(() => {
     if (!profile) return
@@ -56,6 +58,25 @@ export function OnboardingPage() {
     setSkillLevel((profile.skill_level as 'beginner' | 'intermediate' | 'advanced' | null) ?? 'intermediate')
     setStudyHours(String(profile.study_hours ?? 3))
   }, [profile])
+
+  useEffect(() => {
+    if (!goalUsesSubjects && subjects.length > 0) {
+      setSubjects([])
+    }
+    if (goalType !== 'competitive_exams' && examName) {
+      setExamName('')
+    }
+    if (goalType !== 'college_courses') {
+      if (majorSubject) setMajorSubject('')
+      if (degreeType !== degreeTypes[0]) setDegreeType(degreeTypes[0])
+    }
+    if (goalType !== 'language_learning' && language !== 'Spanish') {
+      setLanguage('Spanish')
+    }
+    if (goalType !== 'skill_learning' && skillTrack !== 'Programming') {
+      setSkillTrack('Programming')
+    }
+  }, [degreeType, examName, goalType, goalUsesSubjects, language, majorSubject, skillTrack, subjects.length])
 
   const subjectChoices = useMemo(() => {
     if (!onboardingOptions) return []
@@ -105,7 +126,7 @@ export function OnboardingPage() {
       school_grade: goalType === 'school_learning' ? Number(schoolGrade) : null,
       degree_type: goalType === 'college_courses' ? degreeType : null,
       major_subject: goalType === 'college_courses' ? majorSubject.trim() : null,
-      subjects,
+      subjects: goalUsesSubjects ? subjects : [],
       language: goalType === 'language_learning' ? language : null,
       skill_track: goalType === 'skill_learning' ? skillTrack : null,
       skill_level: skillLevel,
