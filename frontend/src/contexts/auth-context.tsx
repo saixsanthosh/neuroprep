@@ -2,6 +2,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { User } from '../lib/api'
 import * as api from '../lib/api'
+import { exchangeGoogleCodeForAccessToken, startGoogleOAuth } from '../lib/google-oauth'
 
 type AuthContextValue = {
   user: User | null
@@ -93,16 +94,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true)
     try {
       const redirect_to = `${window.location.origin}/auth/callback`
-      const res = await api.startGoogleAuth(redirect_to)
-      if ('oauth_url' in res) {
-        window.location.href = res.oauth_url
-        return 'redirected' as const
-      }
-      localStorage.setItem(TOKEN_KEY, res.token.access_token)
-      localStorage.setItem(USER_KEY, JSON.stringify(res.user))
-      setToken(res.token.access_token)
-      setUser(res.user)
-      return 'authenticated' as const
+      await startGoogleOAuth(redirect_to)
+      return 'redirected' as const
     } finally {
       setIsLoading(false)
     }
@@ -116,7 +109,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }) => {
       setIsLoading(true)
       try {
-        const res = await api.exchangeGoogleAuth(payload)
+        const accessToken =
+          payload.access_token || (payload.code ? await exchangeGoogleCodeForAccessToken(payload.code) : undefined)
+
+        const res = await api.exchangeGoogleAuth({
+          access_token: accessToken,
+          redirect_to: payload.redirect_to,
+        })
         localStorage.setItem(TOKEN_KEY, res.token.access_token)
         localStorage.setItem(USER_KEY, JSON.stringify(res.user))
         setToken(res.token.access_token)
