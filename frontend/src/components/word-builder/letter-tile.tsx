@@ -1,17 +1,25 @@
 import { motion } from 'framer-motion'
 
 interface LetterTileProps {
+  id?: string
   letter: string
   onClick?: () => void
+  onDragStart?: (id: string) => void
+  onDragEnd?: () => void
+  draggable?: boolean
   glowColor?: 'violet' | 'cyan' | 'emerald' | 'amber'
   size?: 'sm' | 'md' | 'lg'
 }
 
 const glowColors = {
-  violet: 'shadow-[0_0_30px_rgba(139,92,246,0.5)] border-violet-400/30 bg-gradient-to-br from-violet-500/20 to-purple-600/20',
-  cyan: 'shadow-[0_0_30px_rgba(34,211,238,0.5)] border-cyan-400/30 bg-gradient-to-br from-cyan-500/20 to-blue-600/20',
-  emerald: 'shadow-[0_0_30px_rgba(16,185,129,0.5)] border-emerald-400/30 bg-gradient-to-br from-emerald-500/20 to-teal-600/20',
-  amber: 'shadow-[0_0_30px_rgba(251,191,36,0.5)] border-amber-400/30 bg-gradient-to-br from-amber-500/20 to-orange-600/20',
+  violet:
+    'shadow-[0_0_30px_rgba(139,92,246,0.5)] border-violet-400/30 bg-gradient-to-br from-violet-500/20 to-purple-600/20',
+  cyan:
+    'shadow-[0_0_30px_rgba(34,211,238,0.5)] border-cyan-400/30 bg-gradient-to-br from-cyan-500/20 to-blue-600/20',
+  emerald:
+    'shadow-[0_0_30px_rgba(16,185,129,0.5)] border-emerald-400/30 bg-gradient-to-br from-emerald-500/20 to-teal-600/20',
+  amber:
+    'shadow-[0_0_30px_rgba(251,191,36,0.5)] border-amber-400/30 bg-gradient-to-br from-amber-500/20 to-orange-600/20',
 }
 
 const sizes = {
@@ -20,38 +28,44 @@ const sizes = {
   lg: 'h-20 w-20 text-4xl sm:h-24 sm:w-24 sm:text-5xl',
 }
 
-export function LetterTile({ letter, onClick, glowColor = 'violet', size = 'md' }: LetterTileProps) {
+export function LetterTile({
+  id,
+  letter,
+  onClick,
+  onDragStart,
+  onDragEnd,
+  draggable = false,
+  glowColor = 'violet',
+  size = 'md',
+}: LetterTileProps) {
   return (
     <motion.button
+      type="button"
+      draggable={draggable}
+      onDragStart={() => {
+        if (id && onDragStart) {
+          onDragStart(id)
+        }
+      }}
+      onDragEnd={onDragEnd}
       onClick={onClick}
       whileHover={{ scale: 1.1, rotate: [0, -5, 5, 0] }}
       whileTap={{ scale: 0.95 }}
       initial={{ opacity: 0, scale: 0, rotate: -180 }}
       animate={{ opacity: 1, scale: 1, rotate: 0 }}
       exit={{ opacity: 0, scale: 0, rotate: 180 }}
-      transition={{
-        type: 'spring',
-        stiffness: 300,
-        damping: 20,
-      }}
+      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
       className={`
         relative flex items-center justify-center rounded-2xl border-2
         font-black uppercase text-white backdrop-blur-xl
-        transition-all duration-300
-        hover:shadow-[0_0_50px_rgba(139,92,246,0.8)]
+        transition-all duration-300 hover:shadow-[0_0_50px_rgba(139,92,246,0.8)]
+        ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}
         ${glowColors[glowColor]}
         ${sizes[size]}
       `}
     >
-      {/* Glow effect */}
       <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/20 to-transparent opacity-50" />
-      
-      {/* Letter */}
-      <span className="relative z-10 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
-        {letter}
-      </span>
-
-      {/* Animated border glow */}
+      <span className="relative z-10 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">{letter}</span>
       <motion.div
         className="absolute inset-0 rounded-2xl"
         animate={{
@@ -61,11 +75,7 @@ export function LetterTile({ letter, onClick, glowColor = 'violet', size = 'md' 
             '0 0 20px rgba(139,92,246,0.3)',
           ],
         }}
-        transition={{
-          duration: 2,
-          repeat: Infinity,
-          ease: 'easeInOut',
-        }}
+        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
       />
     </motion.button>
   )

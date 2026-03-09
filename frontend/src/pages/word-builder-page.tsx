@@ -29,9 +29,14 @@ import { ParticlesBackground } from '../components/ui/particles-background'
 
 type GameMode = 'menu' | 'classic' | 'speed' | 'survival' | 'battle'
 type Difficulty = 'beginner' | 'intermediate' | 'advanced' | 'expert'
-type Category = 'science' | 'technology' | 'programming' | 'vocabulary' | 'history' | 'math' | 'general'
+type Category = 'science' | 'technology' | 'programming' | 'english' | 'history' | 'mathematics' | 'general-knowledge'
 
-interface Puzzle {
+type Tile = {
+  id: string
+  letter: string
+}
+
+type Puzzle = {
   word: string
   scrambled: string
   category: Category
@@ -39,71 +44,38 @@ interface Puzzle {
   hint: string
 }
 
+type LeaderboardEntry = {
+  name: string
+  score: number
+}
+
+const XP_PER_CORRECT = 100
+const XP_PER_LEVEL = 100
+const HINT_COST = 50
+const COIN_REWARD = 10
+const STORAGE_KEY = 'neuroprep_word_builder_leaderboard_v2'
+
 const puzzles: Puzzle[] = [
-  {
-    word: 'COMPUTER',
-    scrambled: 'PTACMOUER',
-    category: 'technology',
-    difficulty: 'beginner',
-    hint: 'Electronic device for processing data.',
-  },
-  {
-    word: 'ALGORITHM',
-    scrambled: 'MHGLORAIT',
-    category: 'programming',
-    difficulty: 'intermediate',
-    hint: 'Step-by-step procedure for calculations.',
-  },
-  {
-    word: 'PHOTOSYNTHESIS',
-    scrambled: 'YSSHTNPOHOTIES',
-    category: 'science',
-    difficulty: 'advanced',
-    hint: 'Process plants use to make food.',
-  },
-  {
-    word: 'MATHEMATICS',
-    scrambled: 'THMACAMITES',
-    category: 'math',
-    difficulty: 'intermediate',
-    hint: 'Study of numbers and shapes.',
-  },
-  {
-    word: 'REVOLUTION',
-    scrambled: 'NOLTUVOIER',
-    category: 'history',
-    difficulty: 'intermediate',
-    hint: 'Fundamental change in society.',
-  },
-  {
-    word: 'VOCABULARY',
-    scrambled: 'YBCALUARVO',
-    category: 'vocabulary',
-    difficulty: 'beginner',
-    hint: 'Collection of words.',
-  },
-  {
-    word: 'QUANTUM',
-    scrambled: 'TMUQANU',
-    category: 'science',
-    difficulty: 'advanced',
-    hint: 'Smallest unit of energy.',
-  },
-  {
-    word: 'DATABASE',
-    scrambled: 'AABTSADE',
-    category: 'technology',
-    difficulty: 'beginner',
-    hint: 'Organized collection of data.',
-  },
+  { word: 'COMPUTER', scrambled: 'PTACMOEUR', category: 'technology', difficulty: 'beginner', hint: 'Electronic machine for processing information.' },
+  { word: 'PYTHON', scrambled: 'TNYHOP', category: 'programming', difficulty: 'beginner', hint: 'Popular programming language known for readability.' },
+  { word: 'JAVASCRIPT', scrambled: 'VCIAJSRAPT', category: 'programming', difficulty: 'intermediate', hint: 'The scripting language of the web.' },
+  { word: 'DATABASE', scrambled: 'TAADBSAE', category: 'technology', difficulty: 'beginner', hint: 'Structured system for storing data.' },
+  { word: 'ALGORITHM', scrambled: 'LMGHORAIT', category: 'science', difficulty: 'advanced', hint: 'Step-by-step method for solving a problem.' },
+  { word: 'FUNCTION', scrambled: 'NFUCTION', category: 'mathematics', difficulty: 'intermediate', hint: 'A relation that maps each input to one output.' },
+  { word: 'ARRAY', scrambled: 'RAAVY', category: 'english', difficulty: 'beginner', hint: 'Ordered collection of values in programming.' },
+  { word: 'OBJECT', scrambled: 'JBTOCE', category: 'general-knowledge', difficulty: 'intermediate', hint: 'A thing, item, or structured instance in code.' },
 ]
+
+function buildTiles(scrambled: string): Tile[] {
+  return scrambled.split('').map((letter, index) => ({ id: `${letter}-${index}-${crypto.randomUUID()}`, letter }))
+}
 
 function randomPuzzle(previousWord?: string) {
   const pool = previousWord ? puzzles.filter((puzzle) => puzzle.word !== previousWord) : puzzles
   return pool[Math.floor(Math.random() * pool.length)] ?? puzzles[0]
 }
 
-function shuffleArray<T>(items: T[]) {
+function shuffleTiles(items: Tile[]) {
   const next = [...items]
   for (let index = next.length - 1; index > 0; index -= 1) {
     const swapIndex = Math.floor(Math.random() * (index + 1))
@@ -138,22 +110,32 @@ function playTone(sound: 'move' | 'correct' | 'wrong' | 'levelup') {
   window.setTimeout(() => void context.close(), 220)
 }
 
+function readLeaderboard(): LeaderboardEntry[] {
+  if (typeof window === 'undefined') {
+    return []
+  }
+
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY)
+    return raw ? (JSON.parse(raw) as LeaderboardEntry[]) : []
+  } catch {
+    return []
+  }
+}
+
 export function WordBuilderPage() {
   const [gameMode, setGameMode] = useState<GameMode>('menu')
   const [currentPuzzle, setCurrentPuzzle] = useState<Puzzle>(puzzles[0])
-  const [scrambledLetters, setScrambledLetters] = useState<string[]>(() => puzzles[0].scrambled.split(''))
-  const [selectedLetters, setSelectedLetters] = useState<string[]>([])
-  const [answer, setAnswer] = useState('')
+  const [scrambledTiles, setScrambledTiles] = useState<Tile[]>(() => buildTiles(puzzles[0].scrambled))
+  const [answerTiles, setAnswerTiles] = useState<Tile[]>([])
+  const [draggedTileId, setDraggedTileId] = useState<string | null>(null)
   const [score, setScore] = useState(0)
-  const [bestScore, setBestScore] = useState(0)
   const [solvedCount, setSolvedCount] = useState(0)
   const [level, setLevel] = useState(1)
   const [xp, setXp] = useState(0)
-  const [xpToNextLevel, setXpToNextLevel] = useState(100)
   const [streak, setStreak] = useState(0)
   const [combo, setCombo] = useState(1)
-  const [coins, setCoins] = useState(50)
-  const [hints, setHints] = useState(3)
+  const [coins, setCoins] = useState(100)
   const [timeLeft, setTimeLeft] = useState(60)
   const [totalAttempts, setTotalAttempts] = useState(0)
   const [correctAttempts, setCorrectAttempts] = useState(0)
@@ -162,14 +144,30 @@ export function WordBuilderPage() {
   const [showHint, setShowHint] = useState(false)
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [lastReward, setLastReward] = useState(0)
+  const [botScore, setBotScore] = useState(0)
+  const [botAccuracy, setBotAccuracy] = useState(72)
+  const [gameOverMessage, setGameOverMessage] = useState<string | null>(null)
+  const [storedLeaderboard, setStoredLeaderboard] = useState<LeaderboardEntry[]>(() => readLeaderboard())
 
+  const answer = useMemo(() => answerTiles.map((tile) => tile.letter).join(''), [answerTiles])
   const accuracy = useMemo(
     () => (totalAttempts === 0 ? 0 : Math.round((correctAttempts / totalAttempts) * 100)),
     [correctAttempts, totalAttempts],
   )
+  const xpToNextLevel = XP_PER_LEVEL
+
+  const leaderboard = useMemo(() => {
+    const current = score > 0 ? [{ name: gameMode === 'battle' ? 'You' : 'Current Run', score }] : []
+    const battleBot = gameMode === 'battle' ? [{ name: 'Bot Sigma', score: botScore }] : []
+    const merged = [...current, ...battleBot, ...storedLeaderboard]
+      .sort((left, right) => right.score - left.score)
+      .slice(0, 5)
+
+    return merged.length > 0 ? merged : [{ name: 'No scores yet', score: 0 }]
+  }, [botScore, gameMode, score, storedLeaderboard])
 
   useEffect(() => {
-    if (gameMode !== 'speed' || timeLeft <= 0) {
+    if ((gameMode !== 'speed' && gameMode !== 'battle') || timeLeft <= 0 || gameOverMessage) {
       return
     }
 
@@ -177,14 +175,35 @@ export function WordBuilderPage() {
       setTimeLeft((previous) => {
         const next = Math.max(0, previous - 1)
         if (next === 0) {
-          window.setTimeout(() => setGameMode('menu'), 0)
+          window.setTimeout(() => {
+            setGameOverMessage(
+              gameMode === 'battle'
+                ? score >= botScore
+                  ? `Time. You win ${score} to ${botScore}.`
+                  : `Time. Bot Sigma wins ${botScore} to ${score}.`
+                : `Time. You solved ${solvedCount} puzzle${solvedCount === 1 ? '' : 's'}.`,
+            )
+          }, 0)
         }
         return next
       })
     }, 1000)
 
     return () => window.clearInterval(timer)
-  }, [gameMode, timeLeft])
+  }, [botScore, gameMode, gameOverMessage, score, solvedCount, timeLeft])
+
+  useEffect(() => {
+    if (gameMode !== 'battle' || timeLeft <= 0 || gameOverMessage) {
+      return
+    }
+
+    const botInterval = window.setInterval(() => {
+      setBotScore((previous) => previous + 60 + Math.floor(Math.random() * 60))
+      setBotAccuracy(68 + Math.floor(Math.random() * 22))
+    }, 4200)
+
+    return () => window.clearInterval(botInterval)
+  }, [gameMode, gameOverMessage, timeLeft])
 
   function playSound(type: 'move' | 'correct' | 'wrong' | 'levelup') {
     if (!soundEnabled) {
@@ -194,93 +213,133 @@ export function WordBuilderPage() {
     playTone(type)
   }
 
-  function loadPuzzle(nextPuzzle: Puzzle) {
-    setCurrentPuzzle(nextPuzzle)
-    setScrambledLetters(nextPuzzle.scrambled.split(''))
-    setSelectedLetters([])
-    setAnswer('')
-    setShowHint(false)
-  }
-
-  function selectLetter(letter: string, index: number) {
-    setSelectedLetters((previous) => [...previous, letter])
-    setAnswer((previous) => previous + letter)
-    setScrambledLetters((previous) => previous.filter((_, currentIndex) => currentIndex !== index))
-    playSound('move')
-  }
-
-  function deselectLetter(index: number) {
-    const letter = selectedLetters[index]
-    if (!letter) {
+  function recordLeaderboard(nextScore: number) {
+    if (typeof window === 'undefined' || nextScore <= 0) {
       return
     }
 
-    setSelectedLetters((previous) => previous.filter((_, currentIndex) => currentIndex !== index))
-    setAnswer((previous) => previous.slice(0, index) + previous.slice(index + 1))
-    setScrambledLetters((previous) => [...previous, letter])
+    const nextLeaderboard = [...storedLeaderboard, { name: `Run ${storedLeaderboard.length + 1}`, score: nextScore }]
+      .sort((left, right) => right.score - left.score)
+      .slice(0, 5)
+
+    setStoredLeaderboard(nextLeaderboard)
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextLeaderboard))
+  }
+
+  function resetBoard(nextPuzzle: Puzzle) {
+    setCurrentPuzzle(nextPuzzle)
+    setScrambledTiles(buildTiles(nextPuzzle.scrambled))
+    setAnswerTiles([])
+    setDraggedTileId(null)
+    setShowHint(false)
+  }
+
+  function startMode(mode: Exclude<GameMode, 'menu'>) {
+    setGameMode(mode)
+    setScore(0)
+    setSolvedCount(0)
+    setLevel(1)
+    setXp(0)
+    setStreak(0)
+    setCombo(1)
+    setCoins(100)
+    setTotalAttempts(0)
+    setCorrectAttempts(0)
+    setLastReward(0)
+    setBotScore(0)
+    setBotAccuracy(72)
+    setTimeLeft(mode === 'classic' ? 0 : 60)
+    setGameOverMessage(null)
+    resetBoard(randomPuzzle())
+  }
+
+  function moveTileToAnswer(tileId: string) {
+    const tile = scrambledTiles.find((item) => item.id === tileId)
+    if (!tile) {
+      return
+    }
+
+    setScrambledTiles((previous) => previous.filter((item) => item.id !== tileId))
+    setAnswerTiles((previous) => [...previous, tile])
+    setDraggedTileId(null)
+    playSound('move')
+  }
+
+  function moveTileBackToPool(index: number) {
+    const tile = answerTiles[index]
+    if (!tile) {
+      return
+    }
+
+    setAnswerTiles((previous) => previous.filter((_, currentIndex) => currentIndex !== index))
+    setScrambledTiles((previous) => [...previous, tile])
     playSound('move')
   }
 
   function shuffleLetters() {
-    setScrambledLetters((previous) => shuffleArray(previous))
+    setScrambledTiles((previous) => shuffleTiles(previous))
     playSound('move')
   }
 
   function useHint() {
-    if (hints <= 0) {
+    if (coins < HINT_COST || showHint) {
       return
     }
 
-    setHints((previous) => previous - 1)
+    setCoins((previous) => previous - HINT_COST)
     setShowHint(true)
     window.setTimeout(() => setShowHint(false), 5000)
   }
 
   function skipPuzzle() {
-    loadPuzzle(randomPuzzle(currentPuzzle.word))
+    resetBoard(randomPuzzle(currentPuzzle.word))
     setStreak(0)
     setCombo(1)
   }
 
+  function finishRound(message: string) {
+    recordLeaderboard(score)
+    setGameOverMessage(message)
+  }
+
   function submitAnswer() {
+    if (gameOverMessage) {
+      return
+    }
+
     setTotalAttempts((previous) => previous + 1)
 
     if (answer.toUpperCase() === currentPuzzle.word) {
       const nextStreak = streak + 1
       const nextCombo = Math.min(combo + 0.5, 5)
-      const basePoints = 100
-      const comboBonus = Math.floor(basePoints * (nextCombo - 1))
-      const streakBonus = nextStreak * 10
-      const totalPoints = basePoints + comboBonus + streakBonus
-      const nextScore = score + totalPoints
+      const reward = Math.floor(100 * nextCombo)
+      const nextScore = score + reward
+      const totalXp = xp + XP_PER_CORRECT
+      const levelUps = Math.floor(totalXp / XP_PER_LEVEL)
+      const levelProgress = totalXp % XP_PER_LEVEL
+      const nextLevel = 1 + levelUps
 
       playSound('correct')
       setCorrectAttempts((previous) => previous + 1)
       setStreak(nextStreak)
       setCombo(nextCombo)
       setScore(nextScore)
-      setBestScore((previous) => Math.max(previous, nextScore))
       setSolvedCount((previous) => previous + 1)
-      setLastReward(totalPoints)
-      setCoins((previous) => previous + 10)
+      setLastReward(XP_PER_CORRECT)
+      setCoins((previous) => previous + COIN_REWARD)
+      setXp(levelProgress)
 
-      setXp((previous) => {
-        const updatedXp = previous + totalPoints
-        if (updatedXp >= xpToNextLevel) {
-          setLevel((currentLevel) => currentLevel + 1)
-          setXpToNextLevel((currentTarget) => Math.floor(currentTarget * 1.5))
-          setShowLevelUp(true)
-          playSound('levelup')
-          window.setTimeout(() => setShowLevelUp(false), 3000)
-          return updatedXp - xpToNextLevel
-        }
-        return updatedXp
-      })
+      if (nextLevel > level) {
+        setLevel(nextLevel)
+        setShowLevelUp(true)
+        playSound('levelup')
+        window.setTimeout(() => setShowLevelUp(false), 3000)
+      }
 
       setShowSuccess(true)
       window.setTimeout(() => {
         setShowSuccess(false)
-        loadPuzzle(randomPuzzle(currentPuzzle.word))
+        resetBoard(randomPuzzle(currentPuzzle.word))
       }, 1800)
       return
     }
@@ -291,13 +350,12 @@ export function WordBuilderPage() {
     setCombo(1)
 
     if (gameMode === 'survival') {
-      setGameMode('menu')
+      finishRound(`Run ended. Final score: ${score}.`)
       return
     }
 
-    setAnswer('')
-    setSelectedLetters([])
-    setScrambledLetters(currentPuzzle.scrambled.split(''))
+    setAnswerTiles([])
+    setScrambledTiles(buildTiles(currentPuzzle.scrambled))
   }
 
   if (gameMode === 'menu') {
@@ -305,18 +363,8 @@ export function WordBuilderPage() {
       <div className="relative min-h-screen overflow-hidden">
         <ParticlesBackground />
         <FloatingShapes />
-        <AnimatedGradientOrb
-          className="left-10 top-20"
-          colors={['rgba(139, 92, 246, 0.3)', 'rgba(167, 139, 250, 0.2)']}
-          size="lg"
-          delay={0}
-        />
-        <AnimatedGradientOrb
-          className="bottom-20 right-10"
-          colors={['rgba(34, 211, 238, 0.3)', 'rgba(56, 189, 248, 0.2)']}
-          size="lg"
-          delay={1}
-        />
+        <AnimatedGradientOrb className="left-10 top-20" colors={['rgba(139, 92, 246, 0.3)', 'rgba(167, 139, 250, 0.2)']} size="lg" delay={0} />
+        <AnimatedGradientOrb className="bottom-20 right-10" colors={['rgba(34, 211, 238, 0.3)', 'rgba(56, 189, 248, 0.2)']} size="lg" delay={1} />
 
         <div className="relative z-10 flex min-h-screen items-center justify-center p-4">
           <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-6xl">
@@ -346,11 +394,11 @@ export function WordBuilderPage() {
                 transition={{ delay: 0.4 }}
                 className="text-xl text-slate-300"
               >
-                Unscramble letters, build words, and train your pattern recognition.
+                Premium brain-training with glowing tiles, drag-and-drop answers, and competitive scoring.
               </motion.p>
             </div>
 
-            <GameModeSelector onSelectMode={setGameMode} />
+            <GameModeSelector onSelectMode={startMode} />
           </motion.div>
         </div>
       </div>
@@ -361,12 +409,7 @@ export function WordBuilderPage() {
     <div className="relative min-h-screen overflow-hidden pb-6">
       <ParticlesBackground />
       <FloatingShapes />
-      <AnimatedGradientOrb
-        className="left-10 top-20"
-        colors={['rgba(139, 92, 246, 0.2)', 'rgba(167, 139, 250, 0.15)']}
-        size="md"
-        delay={0}
-      />
+      <AnimatedGradientOrb className="left-10 top-20" colors={['rgba(139, 92, 246, 0.2)', 'rgba(167, 139, 250, 0.15)']} size="md" delay={0} />
 
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -397,11 +440,7 @@ export function WordBuilderPage() {
             <Star className="h-4 w-4 text-cyan-300" />
             <span className="font-bold text-cyan-200">Lvl {level}</span>
           </div>
-          <button
-            type="button"
-            onClick={() => setSoundEnabled((previous) => !previous)}
-            className="rounded-xl border border-white/10 bg-white/5 p-2 transition hover:bg-white/10"
-          >
+          <button type="button" onClick={() => setSoundEnabled((previous) => !previous)} className="rounded-xl border border-white/10 bg-white/5 p-2 transition hover:bg-white/10">
             <Settings className="h-4 w-4 text-white" />
           </button>
         </div>
@@ -414,51 +453,68 @@ export function WordBuilderPage() {
             difficulty={currentPuzzle.difficulty}
             streak={streak}
             solvedCount={solvedCount}
-            score={score}
-            bestScore={bestScore}
+            leaderboard={leaderboard}
           />
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.3 }}
-          className="space-y-4"
-        >
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }} className="space-y-4">
           <div className="glass-panel relative overflow-hidden p-6 sm:p-8">
             <div className="absolute inset-0 bg-gradient-to-br from-violet-500/10 to-cyan-500/10" />
 
             <div className="relative">
-              <div className="mb-6 flex items-center justify-between">
+              <div className="mb-6 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className="rounded-xl bg-violet-500/20 p-2">
                     <Target className="h-5 w-5 text-violet-300" />
                   </div>
                   <div>
                     <p className="text-sm text-slate-400">Unscramble the word</p>
-                    <p className="text-xs capitalize text-slate-500">{currentPuzzle.category}</p>
+                    <p className="text-xs capitalize text-slate-500">{currentPuzzle.category.replace('-', ' ')}</p>
                   </div>
                 </div>
-                {gameMode === 'speed' ? (
-                  <div className="flex items-center gap-2 rounded-xl border border-red-300/20 bg-red-400/10 px-4 py-2">
-                    <Clock className="h-4 w-4 text-red-300" />
-                    <span className="font-mono text-lg font-bold text-red-200">{timeLeft}s</span>
-                  </div>
-                ) : null}
+                <div className="flex items-center gap-2">
+                  {gameMode === 'speed' || gameMode === 'battle' ? (
+                    <div className="flex items-center gap-2 rounded-xl border border-red-300/20 bg-red-400/10 px-4 py-2">
+                      <Clock className="h-4 w-4 text-red-300" />
+                      <span className="font-mono text-lg font-bold text-red-200">{timeLeft}s</span>
+                    </div>
+                  ) : null}
+                  {gameMode === 'battle' ? (
+                    <div className="rounded-xl border border-cyan-300/20 bg-cyan-400/10 px-4 py-2 text-sm text-cyan-100">
+                      Bot Sigma: <span className="font-bold">{botScore}</span>
+                    </div>
+                  ) : null}
+                </div>
               </div>
 
-              <div className="mb-6 flex flex-wrap justify-center gap-2 sm:gap-3">
-                {scrambledLetters.map((letter, index) => (
-                  <LetterTile
-                    key={`scrambled-${letter}-${index}`}
-                    letter={letter}
-                    onClick={() => selectLetter(letter, index)}
-                    glowColor="violet"
-                  />
-                ))}
+              <div className="mb-6 rounded-3xl border border-white/10 bg-white/5 p-5 transition">
+                <div className="mb-4 text-center text-xs uppercase tracking-[0.22em] text-slate-500">Available letters</div>
+                <div className="flex min-h-[124px] flex-wrap justify-center gap-2 sm:gap-3">
+                  {scrambledTiles.map((tile) => (
+                    <LetterTile
+                      key={tile.id}
+                      id={tile.id}
+                      letter={tile.letter}
+                      draggable
+                      onDragStart={(id) => setDraggedTileId(id)}
+                      onDragEnd={() => setDraggedTileId(null)}
+                      onClick={() => moveTileToAnswer(tile.id)}
+                      glowColor="violet"
+                    />
+                  ))}
+                </div>
               </div>
 
-              <AnswerInput letters={selectedLetters} onRemoveLetter={deselectLetter} />
+              <AnswerInput
+                letters={answerTiles}
+                onRemoveLetter={moveTileBackToPool}
+                onDropLetter={() => {
+                  if (draggedTileId) {
+                    moveTileToAnswer(draggedTileId)
+                  }
+                }}
+                isDragOver={Boolean(draggedTileId)}
+              />
 
               <AnimatePresence>
                 {showHint ? (
@@ -481,19 +537,15 @@ export function WordBuilderPage() {
                   <Shuffle className="h-4 w-4" />
                   Shuffle
                 </Button>
-                <Button variant="secondary" onClick={useHint} disabled={hints === 0} className="gap-2">
+                <Button variant="secondary" onClick={useHint} disabled={coins < HINT_COST || showHint} className="gap-2">
                   <Lightbulb className="h-4 w-4" />
-                  Hint ({hints})
+                  Hint (50)
                 </Button>
                 <Button variant="secondary" onClick={skipPuzzle} className="gap-2">
                   <SkipForward className="h-4 w-4" />
                   Skip
                 </Button>
-                <Button
-                  onClick={submitAnswer}
-                  disabled={answer.length === 0 || (gameMode === 'speed' && timeLeft === 0)}
-                  className="gap-2 bg-gradient-to-r from-violet-500 to-purple-600"
-                >
+                <Button onClick={submitAnswer} disabled={answerTiles.length === 0 || Boolean(gameOverMessage)} className="gap-2 bg-gradient-to-r from-violet-500 to-purple-600">
                   <Zap className="h-4 w-4" />
                   Submit
                 </Button>
@@ -524,6 +576,19 @@ export function WordBuilderPage() {
               <p className="mt-1 text-2xl font-black text-white">x{combo.toFixed(1)}</p>
             </div>
           </div>
+
+          {gameMode === 'battle' ? (
+            <div className="glass-panel grid gap-3 p-4 md:grid-cols-2">
+              <div>
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Bot pressure</p>
+                <p className="mt-1 text-2xl font-black text-white">{botScore}</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Bot accuracy</p>
+                <p className="mt-1 text-2xl font-black text-white">{botAccuracy}%</p>
+              </div>
+            </div>
+          ) : null}
         </motion.div>
 
         <motion.div initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}>
@@ -533,6 +598,45 @@ export function WordBuilderPage() {
 
       <SuccessAnimation show={showSuccess} score={lastReward} />
       <LevelUpAnimation show={showLevelUp} level={level} />
+
+      <AnimatePresence>
+        {gameOverMessage ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 24, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 24, scale: 0.96 }}
+              className="w-full max-w-lg rounded-[2rem] border border-white/10 bg-[linear-gradient(160deg,rgba(8,12,28,0.96),rgba(12,20,44,0.92))] p-8 shadow-[0_30px_80px_rgba(3,7,22,0.45)]"
+            >
+              <h3 className="text-3xl font-black text-white">Round Complete</h3>
+              <p className="mt-3 text-base leading-7 text-slate-300">{gameOverMessage}</p>
+              <div className="mt-5 grid grid-cols-3 gap-3">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Score</p>
+                  <p className="mt-2 text-2xl font-black text-white">{score}</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Solved</p>
+                  <p className="mt-2 text-2xl font-black text-white">{solvedCount}</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Accuracy</p>
+                  <p className="mt-2 text-2xl font-black text-white">{accuracy}%</p>
+                </div>
+              </div>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Button onClick={() => startMode(gameMode)} className="bg-gradient-to-r from-violet-500 to-purple-600 text-white">Play Again</Button>
+                <Button variant="secondary" onClick={() => setGameMode('menu')}>Back to Menu</Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   )
 }

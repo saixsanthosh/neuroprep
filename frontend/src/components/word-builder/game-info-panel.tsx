@@ -1,40 +1,51 @@
 import { motion } from 'framer-motion'
-import {
-  Award,
-  BookOpen,
-  Code2,
-  Cpu,
-  FlaskConical,
-  Flame,
-  ScrollText,
-  Sigma,
-  Sparkles,
-  Trophy,
-} from 'lucide-react'
+import { Award, BookOpen, Code2, Cpu, FlaskConical, Flame, ScrollText, Sigma, Sparkles, Trophy } from 'lucide-react'
 
 import { GlowingCard } from '../ui/glowing-card'
 
-type Category = 'science' | 'technology' | 'programming' | 'vocabulary' | 'history' | 'math' | 'general'
+type Category =
+  | 'science'
+  | 'technology'
+  | 'programming'
+  | 'english'
+  | 'history'
+  | 'mathematics'
+  | 'general-knowledge'
+
 type Difficulty = 'beginner' | 'intermediate' | 'advanced' | 'expert'
+
+interface LeaderboardEntry {
+  name: string
+  score: number
+}
 
 interface GameInfoPanelProps {
   category: Category
   difficulty: Difficulty
   streak: number
   solvedCount: number
-  score: number
-  bestScore: number
+  leaderboard: LeaderboardEntry[]
 }
 
 const categoryIcons = {
   science: FlaskConical,
   technology: Cpu,
   programming: Code2,
-  vocabulary: BookOpen,
+  english: BookOpen,
   history: ScrollText,
-  math: Sigma,
-  general: Sparkles,
+  mathematics: Sigma,
+  'general-knowledge': Sparkles,
 } satisfies Record<Category, typeof BookOpen>
+
+const categoryLabels: Record<Category, string> = {
+  science: 'Science',
+  technology: 'Technology',
+  programming: 'Programming',
+  english: 'English',
+  history: 'History',
+  mathematics: 'Mathematics',
+  'general-knowledge': 'General Knowledge',
+}
 
 const difficultyColors: Record<Difficulty, string> = {
   beginner: 'from-emerald-400 to-teal-500',
@@ -45,7 +56,7 @@ const difficultyColors: Record<Difficulty, string> = {
 
 const dailyGoal = 10
 
-export function GameInfoPanel({ category, difficulty, streak, solvedCount, score, bestScore }: GameInfoPanelProps) {
+export function GameInfoPanel({ category, difficulty, streak, solvedCount, leaderboard }: GameInfoPanelProps) {
   const CategoryIcon = categoryIcons[category]
   const challengeProgress = Math.min(100, (solvedCount / dailyGoal) * 100)
 
@@ -62,7 +73,7 @@ export function GameInfoPanel({ category, difficulty, streak, solvedCount, score
             <p className="mb-1 text-xs text-slate-400">Category</p>
             <div className="flex items-center gap-2">
               <CategoryIcon className="h-5 w-5 text-cyan-200" />
-              <p className="font-semibold capitalize text-white">{category}</p>
+              <p className="font-semibold text-white">{categoryLabels[category]}</p>
             </div>
           </div>
 
@@ -82,12 +93,7 @@ export function GameInfoPanel({ category, difficulty, streak, solvedCount, score
         </div>
 
         <div className="text-center">
-          <motion.p
-            key={streak}
-            initial={{ scale: 1.5, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="text-5xl font-black text-white"
-          >
+          <motion.p key={streak} initial={{ scale: 1.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-5xl font-black text-white">
             {streak}
           </motion.p>
           <p className="mt-2 text-sm text-slate-400">Correct in a row</p>
@@ -112,22 +118,19 @@ export function GameInfoPanel({ category, difficulty, streak, solvedCount, score
       <GlowingCard className="p-5" glowColor="rgba(139, 92, 246, 0.4)">
         <div className="mb-4 flex items-center gap-2">
           <Trophy className="h-4 w-4 text-violet-300" />
-          <p className="text-xs font-semibold uppercase tracking-wider text-violet-300">Session Board</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-violet-300">Leaderboard</p>
         </div>
 
-        <div className="space-y-2 text-sm text-slate-300">
-          <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3">
-            <span>Current score</span>
-            <span className="font-bold text-white">{score}</span>
-          </div>
-          <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3">
-            <span>Best run</span>
-            <span className="font-bold text-white">{bestScore}</span>
-          </div>
-          <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3">
-            <span>Puzzles solved</span>
-            <span className="font-bold text-white">{solvedCount}</span>
-          </div>
+        <div className="space-y-2">
+          {leaderboard.map((entry, index) => (
+            <div key={`${entry.name}-${index}`} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3 text-sm">
+              <div className="flex items-center gap-3">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 font-bold text-slate-300">{index + 1}</span>
+                <span className="font-medium text-white">{entry.name}</span>
+              </div>
+              <span className="font-bold text-violet-300">{entry.score}</span>
+            </div>
+          ))}
         </div>
       </GlowingCard>
 
@@ -138,15 +141,9 @@ export function GameInfoPanel({ category, difficulty, streak, solvedCount, score
         </div>
         <p className="text-sm text-slate-300">Solve {dailyGoal} puzzles today to claim the session bonus.</p>
         <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
-          <motion.div
-            className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-600"
-            initial={{ width: 0 }}
-            animate={{ width: `${challengeProgress}%` }}
-          />
+          <motion.div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-600" initial={{ width: 0 }} animate={{ width: `${challengeProgress}%` }} />
         </div>
-        <p className="mt-2 text-center text-xs text-slate-400">
-          {Math.min(solvedCount, dailyGoal)}/{dailyGoal} completed
-        </p>
+        <p className="mt-2 text-center text-xs text-slate-400">{Math.min(solvedCount, dailyGoal)}/{dailyGoal} completed</p>
       </GlowingCard>
     </div>
   )
